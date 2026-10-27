@@ -12,7 +12,7 @@ Copyright (c) 2026 VM. All rights reserved.
 
 - D&D 相关设定：《龙与地下城》、深水城（Waterdeep）、黑杖（Blackstaff）等名称和设定归 Wizards of the Coast 所有。本仓库是非官方的粉丝内容，与 WotC 无关，也未获其认可。
 - 角色设计：作品中的角色如果是其他玩家或画师创作的原创角色，角色设计归原作者所有。生图时用到的参考图不在本仓库中。
-- 字体：`html/bard-lute/` 里嵌入的 Noto Serif SC 子集按 SIL Open Font License 1.1 授权（https://openfontlicense.org/）。
+- 字体：`html/bard-lute/` 里嵌入的 Noto Serif SC 子集按 SIL Open Font License 1.1 授权，许可证全文见 `html/bard-lute/OFL.txt`。
 
 ## 关于 AI 生成内容
 
@@ -39,7 +39,8 @@ released under an open source license; all rights are reserved.
   remain theirs. Reference images used for image generation are not in this
   repository.
 - Fonts: the Noto Serif SC subset embedded in html/bard-lute/ is licensed under
-  the SIL Open Font License 1.1 (https://openfontlicense.org/).
+  the SIL Open Font License 1.1; the full license text is in
+  html/bard-lute/OFL.txt.
 
 ## About AI-generated content
 
