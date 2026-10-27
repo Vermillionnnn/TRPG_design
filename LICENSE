@@ -1,0 +1,50 @@
+Copyright (c) 2026 VM. All rights reserved.
+
+# 中文
+
+本仓库公开只是为了方便浏览和学习，没有采用任何开源许可证，保留所有权利。
+
+- 可以：在 GitHub 上浏览、阅读本仓库，以及按 GitHub 服务条款在 GitHub 内查看和 fork。
+- 未经设计者书面许可，不可以：复制、修改、再发布、用于其他作品或商业用途，包括代码、图像、视频、SVG 和文字。
+- 想复用其中内容，请先开 Issue 联系。
+
+## 不属于设计者的内容
+
+- D&D 相关设定：《龙与地下城》、深水城（Waterdeep）、黑杖（Blackstaff）等名称和设定归 Wizards of the Coast 所有。本仓库是非官方的粉丝内容，与 WotC 无关，也未获其认可。
+- 角色设计：作品中的角色如果是其他玩家或画师创作的原创角色，角色设计归原作者所有。生图时用到的参考图不在本仓库中。
+- 字体：`html/bard-lute/` 里嵌入的 Noto Serif SC 子集按 SIL Open Font License 1.1 授权（https://openfontlicense.org/）。
+
+## 关于 AI 生成内容
+
+代码由 Claude 编写，部分图像由 AI 生图工具生成（见 AI_NOTICE.md）。在一些法域，完全由 AI 生成、没有足够人类创作的内容可能不受版权保护。本声明只就设计者实际享有的权利保留权利，不对任何部分是否受版权保护作出判断。
+
+# English
+
+This repository is public so people can browse and learn from it. It is not
+released under an open source license; all rights are reserved.
+
+- You may view and read this repository on GitHub, and view and fork it within
+  GitHub as permitted by the GitHub Terms of Service.
+- Without written permission from the designer, you may not copy, modify,
+  redistribute, reuse in other works, or use commercially any of its contents,
+  including code, images, video, SVG and text.
+- To ask about reuse, please open an issue.
+
+## Content not owned by the designer
+
+- D&D material: Dungeons & Dragons, Waterdeep, Blackstaff and related names and
+  settings belong to Wizards of the Coast. This is unofficial fan content, not
+  approved or endorsed by WotC.
+- Character designs: original characters created by other players or artists
+  remain theirs. Reference images used for image generation are not in this
+  repository.
+- Fonts: the Noto Serif SC subset embedded in html/bard-lute/ is licensed under
+  the SIL Open Font License 1.1 (https://openfontlicense.org/).
+
+## About AI-generated content
+
+The code was written by Claude and some images were made with AI image tools
+(see AI_NOTICE.md). In some jurisdictions, material generated entirely by AI
+without sufficient human authorship may not be protected by copyright. This
+notice reserves only the rights the designer actually holds and makes no claim
+about whether any particular part is copyrightable.
