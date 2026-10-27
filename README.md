@@ -25,5 +25,6 @@
 - [`scenes/blackstaff-office/`](scenes/blackstaff-office/)：深水城黑杖塔办事处内景，Blender 剖面场景
 - [`scenes/shadow-base/`](scenes/shadow-base/)：the Shadow 小队在深水城的据点外景沙盘（大厅、训练场、五人宿舍、紫藤棚活动区）
 - [`html/bard-lute/`](html/bard-lute/)：《林间夜曲》，吟游诗人弹鲁特琴的小网页；宣传短片的生成脚本在 [`video/`](html/bard-lute/video/)
+- [`html/scribe-scroll/`](html/scribe-scroll/)：《烛堡抄卷》，法师希娜在烛堡书库抄写法术卷轴的打字小游戏
 - [`plots/hina-lumi/`](plots/hina-lumi/)：希娜·露弥（Hina Lumi）的立绘与绘制过程（工具、提示词、迭代）
 - [`plots/wolf-lion-stars/`](plots/wolf-lion-stars/)：狼与白狮星空背靠背插画，单图失败后改为拆图拼合，再转绘成版画风格

@@ -1,11 +1,13 @@
-# 烛堡抄卷（制作中）
+# 烛堡抄卷
 
-《林间夜曲》的法师版：希娜·露弥（见 [`plots/hina-lumi/`](../../plots/hina-lumi/)）在烛堡书库抄写法术卷轴，玩法是逐词打字。页面还没写，这里先记下已定的设计和做好的素材。
+《林间夜曲》的法师版：希娜·露弥（见 [`plots/hina-lumi/`](../../plots/hina-lumi/)）在烛堡书库抄写法术卷轴，玩法是逐词打字。页面是 Artifact 源（只有页面内容），字体全部内嵌，不从外部加载任何东西。
 
 ## 现有文件
 
 | 文件 | 说明 |
 | --- | --- |
+| `scribe-scroll.html` | 页面本体：湿壁画、打字玩法、规格卡，两种字体以 woff2 子集内嵌 |
+| `tools/subset_font.py` | 从 Google Fonts 取两种字体的子集，重新嵌进页面 |
 | `tools/compose_titulus.py` | 从《林间夜曲》题记的安色尔体轮廓里拆出字母，拼成新的拉丁题记，不需要下载字体 |
 
 生成题记轮廓（输出写到已忽略的 `out/`）：
@@ -15,6 +17,22 @@ python3 html/scribe-scroll/tools/compose_titulus.py 'HIC·MAGA·CARMINA·NOTAT' 
 ```
 
 可用字母只有 A C D E G H I L M N O R T V 和间隔点。题记意思是「此处法师抄写咒文」。
+
+## 字体
+
+| 字体 | 设计者 | 许可 | 用在哪里 | 子集 |
+| --- | --- | --- | --- | --- |
+| [Noto Serif SC](https://fonts.google.com/noto/specimen/Noto+Serif+SC) | Google（[google/fonts](https://github.com/google/fonts/tree/main/ofl/notoserifsc)） | SIL OFL 1.1 | 全页正文、标题、卷轴上的中文释义 | 页面里出现的所有非 ASCII 字符 + 可打印 ASCII |
+| [Fondamento](https://fonts.google.com/specimen/Fondamento) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/fondamento)） | SIL OFL 1.1 | 羊皮纸上的英文咒文（`.sheet .text`） | 可打印 ASCII + 中点 `·`（褪色字母的占位符） |
+| Uncial Antiqua | Astigmatic | SIL OFL 1.1 | 湿壁画题记（只用字母轮廓，见下） | — |
+
+咒文每个字母是单独的 `<span>`，连笔草书会断开，所以选了不连笔的意大利文书手写体 Fondamento。备选也都核对过（都是 SIL OFL，信息取自 google/fonts 的 `METADATA.pb`）：Almendra（Ana Sanfelippo）、IM Fell DW Pica 斜体（Igino Marini）、Tangerine（Toshi Omagari）、Mea Culpa（Robert Leuschke）、Pinyon Script（Nicole Fally）。后三种是连笔体，拆成单字母后效果不好。
+
+改了页面里的中文后重新嵌入字体（需要访问 Google Fonts，VM 在自己的终端跑，或交给云端会话）：
+
+```bash
+python3 html/scribe-scroll/tools/subset_font.py
+```
 
 ## 画面
 
@@ -37,6 +55,4 @@ python3 html/scribe-scroll/tools/compose_titulus.py 'HIC·MAGA·CARMINA·NOTAT' 
 
 ## 待做
 
-1. 写 `scribe-scroll.html`（Artifact 源，只有页面内容），字体先复用《林间夜曲》嵌入的 Noto Serif SC 子集。
-2. 照 `bard-lute/tools/` 加 `build_release.py` 和 `subset_font.py`；改完中文后由 VM 在自己的终端跑 `subset_font.py`（需要访问 Google Fonts）。
-3. 在根 README 的「现有作品」里加一行。
+1. 照 `bard-lute/tools/` 加 `build_release.py`，生成可单独打开的发布版。
