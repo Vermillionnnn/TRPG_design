@@ -31,14 +31,16 @@ python3 html/scribe-scroll/tools/compose_titulus.py 'HIC·MAGA·CARMINA·NOTAT' 
 | 字体 | 版权方 | 许可 | 用在哪里 | 子集 |
 | --- | --- | --- | --- | --- |
 | [Noto Serif SC](https://fonts.google.com/noto/specimen/Noto+Serif+SC) | Adobe，由 Google Fonts 发布（[google/fonts](https://github.com/google/fonts/tree/main/ofl/notoserifsc)） | SIL OFL 1.1 | 全页正文、标题、卷轴上的中文释义 | 页面里出现的所有非 ASCII 字符 + 可打印 ASCII |
-| [Fondamento](https://fonts.google.com/specimen/Fondamento) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/fondamento)） | SIL OFL 1.1 | 羊皮纸上的英文咒文（`.sheet .text`） | 可打印 ASCII + 中点 `·`（褪色字母的占位符） |
+| [Fondamento](https://fonts.google.com/specimen/Fondamento) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/fondamento)） | SIL OFL 1.1 | 羊皮纸上的英文咒文（`.sheet .text`），页面里改名为 Scroll Chancery，见下 | 可打印 ASCII + 中点 `·`（褪色字母的占位符） |
 | [Uncial Antiqua](https://fonts.google.com/specimen/Uncial+Antiqua) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/uncialantiqua)） | SIL OFL 1.1 | 湿壁画题记（只用字母轮廓，见下） | — |
 
 三种字体的版权声明和许可证全文在仓库根目录的 [`OFL.txt`](../../OFL.txt)；页面 `<style>` 开头的注释里也写了版权声明，所以单独发出去的发布版也带着它们。新增字体时在 `OFL.txt` 顶部加一段版权声明，在页面注释里加一行。
 
 咒文每个字母是单独的 `<span>`，连笔草书会断开，所以选了不连笔的意大利文书手写体 Fondamento。备选也都核对过（都是 SIL OFL，信息取自 google/fonts 的 `METADATA.pb`）：Almendra（Ana Sanfelippo）、IM Fell DW Pica 斜体（Igino Marini）、Tangerine（Toshi Omagari）、Mea Culpa（Robert Leuschke）、Pinyon Script（Nicole Fally）。后三种是连笔体，拆成单字母后效果不好。
 
-改了页面里的中文后重新嵌入字体（需要访问 Google Fonts，VM 在自己的终端跑，或交给云端会话）：
+「Fondamento」是保留字体名（Reserved Font Name）。按 OFL FAQ 2.6，网页字体的子集算修改版，不能再用保留字体名，所以页面里的 CSS 家族名和子集内部的字体名都改成了 Scroll Chancery，版权声明（含保留字体名声明）原样保留。`subset_font.py` 每次重新生成都会自动改名。
+
+改了页面里的中文后重新嵌入字体。需要访问 Google Fonts，改名还需要 fontTools 和 brotli（`pip install fonttools brotli`），所以由 VM 在自己的终端跑，或交给云端会话：
 
 ```bash
 python3 html/scribe-scroll/tools/subset_font.py

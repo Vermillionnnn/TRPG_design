@@ -7,12 +7,20 @@ Version 1.1, copied in full after the notices. Which page uses which font is
 listed in each page's README.
 
 Noto Serif SC
-Copyright (c) 2017-2024 Adobe (http://www.adobe.com/).
+(c) 2017-2024 Adobe (http://www.adobe.com/).
+Copyright 2012 Google Inc. All Rights Reserved.
+(The first line is the copyright notice in the font file, NotoSerifSC[wght].ttf
+in github.com/google/fonts ofl/notoserifsc; the second is the header of the
+OFL.txt in the same directory. No Reserved Font Name is declared there. Noto
+Serif SC is the Google release of Adobe's Source Han Serif, whose own license
+reserves the name "Source"; that name is not used here.)
 
 Fondamento
 Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
 (astigma@astigmatic.com), with Reserved Font Names "Fondamento" and
 "Fondamento Italic"
+(Embedded in html/scribe-scroll/ as a subset, which is a Modified Version, so
+it is renamed "Scroll Chancery" in the CSS and in the font's name table.)
 
 Uncial Antiqua
 Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
