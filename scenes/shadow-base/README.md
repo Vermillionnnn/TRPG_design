@@ -36,6 +36,7 @@
 | `shadow_base_day.png` | 白天远景（`--shot wide`，默认设置） |
 | `shadow_base_night.png` | 夜间远景（`--shot wide --time night`） |
 | `shadow_base_loop.gif` | 白天远景、米白背景的 2 秒循环定格动画（16 帧，8 fps，576×432） |
+| `shadow_base_night_loop.gif` | 夜间远景的 2 秒循环定格动画（同上规格，夜空背景） |
 
 ## 如何运行
 
@@ -62,4 +63,8 @@ scenes/blender.sh scenes/shadow-base/build_scene.py --render out/wide.png --shot
 ```bash
 scenes/blender.sh scenes/shadow-base/build_scene.py --anim out/shadow_frames --step 3 --backdrop paper --samples 48 --res 45
 scenes/blender.sh scenes/tools/frames_to_gif.py out/shadow_frames scenes/shadow-base/shadow_base_loop.gif --fps 8
+
+# 夜间版
+scenes/blender.sh scenes/shadow-base/build_scene.py --anim out/shadow_frames_night --step 3 --time night --samples 48 --res 45
+scenes/blender.sh scenes/tools/frames_to_gif.py out/shadow_frames_night scenes/shadow-base/shadow_base_night_loop.gif --fps 8
 ```
