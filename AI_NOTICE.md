@@ -7,6 +7,7 @@
 - 代码按现状提供，未经过系统的安全审计。如果你想运行其中的代码，请：
   1. 在隔离环境中运行（如虚拟机、容器或沙箱），不要直接在存有重要数据的机器上执行；
   2. 运行前自行阅读并独立评估代码的安全性，风险由使用者自负。
+- 版权说明（保留所有权利）和 AI 生成内容的版权状况见 [LICENSE](LICENSE)。
 
 ## English
 
@@ -15,3 +16,4 @@
 - The code is provided as is and has not been through a formal security audit. If you want to run any of it:
   1. Run it in an isolated environment (a VM, container or sandbox), not directly on a machine holding important data.
   2. Read the code and evaluate its safety independently before running it. You do so at your own risk.
+- For the copyright notice (all rights reserved) and a note on AI-generated content, see [LICENSE](LICENSE).

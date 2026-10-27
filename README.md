@@ -3,6 +3,8 @@
 这里是我们跑团（TRPG）相关设计与讨论的大本营，主要围绕《龙与地下城》第五版（2014 规则）。讨论与想法欢迎直接开 Issue 或 Pull Request。
 
 > 仓库里的代码均由 Claude 编写，部分图像为 AI 生成；运行前请先看 [AI 使用声明 / AI Usage Notice](AI_NOTICE.md)。
+>
+> 版权：保留所有权利，仓库仅供浏览和学习，未经许可请勿复用；详见 [LICENSE](LICENSE)。
 
 ## 目录
 
