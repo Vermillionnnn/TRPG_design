@@ -40,6 +40,7 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/wide.png --samples
 
 - `html/bard-lute/bard-lute.html` 是 Artifact 源（只有页面内容），改它之后运行 `python3 html/bard-lute/tools/build_release.py` 重新生成可单独打开的 `bard-lute-release.html`。
 - 改了页面里的中文字后运行 `python3 html/bard-lute/tools/subset_font.py`，重新嵌入字体子集（需要访问 Google Fonts）。
+- `html/scribe-scroll/` 同样的流程：改 `scribe-scroll.html` 后跑 `tools/build_release.py` 生成 `scribe-scroll-release.html`；改了中文跑 `tools/subset_font.py`（同时重嵌 Noto Serif SC 和 Fondamento，需要联网）。
 - 宣传短片：`html/bard-lute/video/tools/make_video.sh`，依赖和流程见 [`html/bard-lute/video/README.md`](html/bard-lute/video/README.md)。中间文件在 `video/.work/`，不进仓库。
 
 ### 立绘（`plots/`）
