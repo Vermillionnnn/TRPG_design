@@ -94,7 +94,7 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/t.png --samples 8 
 
 ### 工作目录外的写入与 `acceptEdits`
 
-后续测试发现：编辑工具（Write/Edit）不走 Seatbelt 沙箱，只受 `permissions` 约束。在 auto 模式下，它们能在工作目录外新建和修改文件，而 bash 不能。用 deny 规则「除了仓库都拒绝」的尝试都失败了：带通配符的路径规则会连仓库一起挡住，逐项列出的规则又管不到以后新建的文件（详见 [`claude-settings/2026-10-26-worklog.md`](claude-settings/2026-10-26-worklog.md)）。
+后续测试发现：编辑工具（Write/Edit）不走 Seatbelt 沙箱，只受 `permissions` 约束。在 auto 模式下，它们能在工作目录外新建和修改文件，而 bash 不能。用 deny 规则「除了仓库都拒绝」的尝试都失败了：带通配符的路径规则会连仓库一起挡住，逐项列出的规则又管不到以后新建的文件。
 
 最终做法：全局设置恢复到实验前的状态，只加 `"defaultMode": "acceptEdits"`。实测结果：
 
@@ -108,4 +108,3 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/t.png --samples 8 
 - 「询问」是软保护：点「允许」就会写入，遇到陌生路径要留意。
 - 桌面版里每个会话可能有自己的权限模式，新开会话时要确认是「Accept edits」，而不是 auto。
 - 渲染命令自动放行：项目 `.claude/settings.local.json` 里加了 `"allow": ["Bash(BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh *)"]`，实测不再弹窗。命令要写成这个形式，后面不要接 `| grep` 等管道，否则可能匹配不上。
-- 设置快照存档在 [`claude-settings/`](claude-settings/)。
