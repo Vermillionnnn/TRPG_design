@@ -1,125 +1,34 @@
 """Build an exterior diorama of the Shadow party's compound in Blender.
 
-Main hall, training yard, a five-room dormitory, watchtower, gate and props,
+Main hall, training yard, a five-room dormitory, grapevine patio, gate and props,
 in the same stylised diorama look as scenes/homebase.
 
 Run with:  python3 scenes/shadow-base/build_scene.py [--render out.png] [--samples N]
-           [--shot wide|close|top|pergola] [--time day|night] [--res percent]
-           [--save out.blend]
+           [--shot wide|close|top|pergola] [--time day|night] [--backdrop sky|paper]
+           [--anim frames_dir [--step N]] [--res percent] [--save out.blend]
 Requires the `bpy` module (pip install bpy) or run inside Blender:
     scenes/blender.sh scenes/shadow-base/build_scene.py --render out.png
 """
 import math
+import os
 import random
 import sys
 
-import bpy
-from mathutils import Euler, Vector
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  # scenes/
+
+import bpy  # noqa: E402
+from mathutils import Euler, Vector  # noqa: E402
+
+from assets import (barrel, bush, candle, cauldron, crate, crystal_ball, crystal_cluster, driftglobe,  # noqa: E402
+                    flower_bed, flower_patch, fountain, lamp_post, lantern, open_book, pergola,
+                    shadow_emblem, staff, tree, weapon_rack)
+from assets.lib import (Batch, assign, bevel, box, cone, cyl, keyframe, mat, noisy_mat,  # noqa: E402
+                        palette, point_light, reset, sphere, wave)
+from assets.lib import shell as lib_shell  # noqa: E402
 
 random.seed(11)
 
 # ---------------------------------------------------------------- helpers
-
-def reset():
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-
-
-def mat(name, color, rough=0.6, metal=0.0, emit=None, emit_strength=0.0):
-    m = bpy.data.materials.get(name)
-    if m:
-        return m
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    bsdf = m.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (*color, 1)
-    bsdf.inputs["Roughness"].default_value = rough
-    bsdf.inputs["Metallic"].default_value = metal
-    if emit:
-        bsdf.inputs["Emission Color"].default_value = (*emit, 1)
-        bsdf.inputs["Emission Strength"].default_value = emit_strength
-    return m
-
-
-def noisy_mat(name, c1, c2, scale=8.0, rough=0.7, stretch=(1, 1, 1)):
-    """Two-tone material driven by noise; gives wood/stone some variation."""
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    nt = m.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
-    bsdf.inputs["Roughness"].default_value = rough
-    tc = nt.nodes.new("ShaderNodeTexCoord")
-    mp = nt.nodes.new("ShaderNodeMapping")
-    mp.inputs["Scale"].default_value = stretch
-    nz = nt.nodes.new("ShaderNodeTexNoise")
-    nz.inputs["Scale"].default_value = scale
-    nz.inputs["Detail"].default_value = 6
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].color = (*c1, 1)
-    ramp.color_ramp.elements[1].color = (*c2, 1)
-    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
-    nt.links.new(mp.outputs["Vector"], nz.inputs["Vector"])
-    nt.links.new(nz.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
-    bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.25
-    nt.links.new(nz.outputs["Fac"], bump.inputs["Height"])
-    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
-    return m
-
-
-def assign(obj, material):
-    obj.data.materials.clear()
-    obj.data.materials.append(material)
-    return obj
-
-
-def bevel(obj, width=0.01, segs=3):
-    mod = obj.modifiers.new("bevel", "BEVEL")
-    mod.width = width
-    mod.segments = segs
-    return obj
-
-
-def box(name, size, loc, material, rot=(0, 0, 0), bev=0.012):
-    bpy.ops.mesh.primitive_cube_add(size=1, location=loc, rotation=rot)
-    o = bpy.context.object
-    o.name = name
-    o.scale = size
-    bpy.ops.object.transform_apply(scale=True)
-    if bev:
-        bevel(o, bev)
-    return assign(o, material)
-
-
-def cyl(name, r, depth, loc, material, rot=(0, 0, 0), verts=24, smooth=True):
-    bpy.ops.mesh.primitive_cylinder_add(radius=r, depth=depth, location=loc,
-                                        rotation=rot, vertices=verts)
-    o = bpy.context.object
-    o.name = name
-    if smooth:
-        bpy.ops.object.shade_smooth()
-    return assign(o, material)
-
-
-def sphere(name, r, loc, material, scale=(1, 1, 1), segs=16):
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=loc, segments=segs,
-                                         ring_count=segs // 2)
-    o = bpy.context.object
-    o.name = name
-    o.scale = scale
-    bpy.ops.object.shade_smooth()
-    return assign(o, material)
-
-
-def cone(name, r1, r2, depth, loc, material, rot=(0, 0, 0), verts=16, smooth=True):
-    bpy.ops.mesh.primitive_cone_add(radius1=r1, radius2=r2, depth=depth,
-                                    location=loc, rotation=rot, vertices=verts)
-    o = bpy.context.object
-    o.name = name
-    if smooth:
-        bpy.ops.object.shade_smooth()
-    return assign(o, material)
-
 
 def torus(name, R, r, loc, material, rot=(0, 0, 0), segs=48):
     bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=r, major_segments=segs,
@@ -141,17 +50,6 @@ def mesh(name, verts, faces, material, solid=0.0):
     return assign(o, material)
 
 
-def point_light(name, loc, energy, color, radius=0.05):
-    ld = bpy.data.lights.new(name, "POINT")
-    ld.energy = energy
-    ld.color = color
-    ld.shadow_soft_size = radius
-    o = bpy.data.objects.new(name, ld)
-    o.location = loc
-    bpy.context.collection.objects.link(o)
-    return o
-
-
 def group(name, parts, loc=(0, 0, 0), rz=0.0, parent=None):
     """Parent parts (built in local coords) to a new empty and place it."""
     e = bpy.data.objects.new(name, None)
@@ -171,61 +69,66 @@ PARTY = [(0.70, 0.08, 0.10), (0.05, 0.50, 0.55), (0.90, 0.65, 0.12),
          (0.45, 0.15, 0.70), (0.12, 0.48, 0.18)]   # one door colour per member
 
 
+def plank_mat(name, c1, c2, board=0.16):
+    """Horizontal weatherboards: dark seams every `board` metres along z, noisy grain between."""
+    m = noisy_mat(name, c1, c2, 5, 0.7, stretch=(1, 1, 12))
+    nt = m.node_tree
+    bsdf = nt.nodes["Principled BSDF"]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    fr = nt.nodes.new("ShaderNodeMath")
+    fr.operation = "PINGPONG"
+    fr.inputs[1].default_value = board / 2
+    seam = nt.nodes.new("ShaderNodeMapRange")
+    seam.inputs["From Min"].default_value = 0.0
+    seam.inputs["From Max"].default_value = 0.012
+    mix = nt.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    a_col, b_col = mix.inputs[6], mix.inputs[7]      # the colour A / B sockets
+    ramp_out = bsdf.inputs["Base Color"].links[0].from_socket
+    nt.links.new(tc.outputs["Object"], sep.inputs[0])
+    nt.links.new(sep.outputs["Z"], fr.inputs[0])
+    nt.links.new(fr.outputs[0], seam.inputs["Value"])
+    nt.links.new(seam.outputs["Result"], mix.inputs[0])
+    a_col.default_value = (0.08, 0.05, 0.03, 1)
+    nt.links.new(ramp_out, b_col)
+    nt.links.new(mix.outputs[2], bsdf.inputs["Base Color"])
+    return m
+
+
 def build_materials():
-    M = {}
-    M["stone"] = noisy_mat("Stone", (0.30, 0.29, 0.28), (0.44, 0.43, 0.41), 6, 0.9)
-    M["flag"] = noisy_mat("Flagstone", (0.46, 0.44, 0.40), (0.56, 0.54, 0.50), 5, 0.9)
-    M["wood"] = noisy_mat("Wood", (0.36, 0.21, 0.10), (0.46, 0.29, 0.15),
-                          5, 0.6, stretch=(1, 1, 10))
-    M["darkwood"] = noisy_mat("DarkWood", (0.14, 0.08, 0.04), (0.20, 0.12, 0.06),
-                              5, 0.55, stretch=(1, 1, 10))
-    M["log"] = noisy_mat("Log", (0.26, 0.17, 0.09), (0.36, 0.25, 0.14),
-                         4, 0.8, stretch=(1, 1, 6))
-    M["plaster"] = noisy_mat("Plaster", (0.78, 0.72, 0.60), (0.85, 0.80, 0.69), 3, 0.95)
-    M["slate"] = noisy_mat("Slate", (0.17, 0.22, 0.31), (0.22, 0.27, 0.36), 9, 0.6)
-    M["slate2"] = noisy_mat("Slate2", (0.13, 0.17, 0.25), (0.17, 0.21, 0.29), 9, 0.6)
-    M["slate3"] = noisy_mat("Slate3", (0.24, 0.29, 0.38), (0.29, 0.34, 0.43), 9, 0.6)
-    M["ridge"] = mat("Ridge", (0.10, 0.12, 0.17), 0.5)
-    M["grass"] = noisy_mat("Grass", (0.15, 0.34, 0.07), (0.21, 0.42, 0.10), 3, 0.95)
+    # scene-tuned (brighter, daylight) versions of palette materials; made before
+    # palette() so that assets looking them up by name get these as well
+    M = {
+        "stone": noisy_mat("Stone", (0.30, 0.29, 0.28), (0.44, 0.43, 0.41), 6, 0.9),
+        "wood": noisy_mat("Wood", (0.36, 0.21, 0.10), (0.46, 0.29, 0.15), 5, 0.6, stretch=(1, 1, 10)),
+        "darkwood": noisy_mat("DarkWood", (0.07, 0.04, 0.02), (0.11, 0.065, 0.035), 5, 0.55, stretch=(1, 1, 10)),
+        "plaster": noisy_mat("Plaster", (0.78, 0.72, 0.60), (0.85, 0.80, 0.69), 3, 0.95),
+        "leather": mat("Leather", (0.35, 0.16, 0.06), 0.6),
+        # warmer, slightly yellow greens for a sunny summer day
+        "leaf": noisy_mat("Leaf", (0.20, 0.34, 0.07), (0.28, 0.43, 0.10), 4, 0.9),
+        "leaf_light": noisy_mat("LeafLight", (0.30, 0.46, 0.10), (0.40, 0.55, 0.14), 4, 0.85),
+        "hedge": noisy_mat("Hedge", (0.15, 0.28, 0.06), (0.21, 0.36, 0.08), 5, 0.9),
+        "pine": noisy_mat("Pine", (0.09, 0.22, 0.09), (0.13, 0.28, 0.11), 4, 0.9),
+        "tuft": mat("GrassTuft", (0.30, 0.46, 0.09), 0.9),
+    }
+    M = {**palette(), **M}
+    M["red"], M["white"] = M["red_paint"], M["white_paint"]
+    # weathered cedar shakes for the roofs, a few patches of moss
+    # roofs and framing are kept dark so the lighter wall boards read against them
+    M["shake"] = noisy_mat("Shake", (0.13, 0.075, 0.04), (0.19, 0.11, 0.06), 6, 0.8, stretch=(1, 6, 1))
+    M["shake2"] = noisy_mat("Shake2", (0.08, 0.05, 0.03), (0.12, 0.07, 0.04), 6, 0.8, stretch=(1, 6, 1))
+    M["shake3"] = noisy_mat("Shake3", (0.20, 0.13, 0.08), (0.26, 0.17, 0.10), 6, 0.85, stretch=(1, 6, 1))
+    M["moss"] = noisy_mat("Moss", (0.035, 0.06, 0.02), (0.06, 0.09, 0.03), 10, 0.95)
+    M["planks"] = plank_mat("WallPlanks", (0.56, 0.40, 0.23), (0.68, 0.51, 0.31))
+    M["grass"] = noisy_mat("Grass", (0.24, 0.38, 0.07), (0.31, 0.45, 0.10), 3, 0.95)
     M["dirt"] = noisy_mat("Dirt", (0.50, 0.38, 0.24), (0.58, 0.45, 0.30), 6, 1.0)
-    M["leaf"] = noisy_mat("Leaf", (0.12, 0.30, 0.07), (0.19, 0.40, 0.11), 4, 0.9)
-    M["pine"] = noisy_mat("Pine", (0.05, 0.20, 0.11), (0.08, 0.26, 0.14), 4, 0.9)
-    M["straw"] = noisy_mat("Straw", (0.70, 0.55, 0.22), (0.82, 0.67, 0.32), 9, 0.95,
-                           stretch=(1, 1, 8))
-    M["burlap"] = noisy_mat("Burlap", (0.55, 0.43, 0.27), (0.63, 0.51, 0.33), 30, 1.0)
-    M["iron"] = mat("Iron", (0.12, 0.12, 0.13), 0.45, 1.0)
-    M["steel"] = mat("Steel", (0.7, 0.72, 0.75), 0.25, 1.0)
-    M["silver"] = mat("Silver", (0.85, 0.87, 0.92), 0.2, 1.0)
-    M["brass"] = mat("Brass", (0.8, 0.55, 0.25), 0.35, 1.0)
-    M["rope"] = mat("Rope", (0.55, 0.42, 0.25), 0.9)
-    M["red"] = mat("RedPaint", (0.6, 0.05, 0.05), 0.7)
-    M["white"] = mat("WhitePaint", (0.85, 0.82, 0.75), 0.8)
-    M["shadow"] = mat("ShadowCloth", (0.035, 0.02, 0.06), 0.9)        # party colour
-    M["shadow_trim"] = mat("ShadowTrim", (0.34, 0.16, 0.60), 0.8)
-    M["void"] = mat("Void", (0.0, 0.0, 0.0), 1.0)
-    M["window"] = mat("WindowWarm", (1.0, 0.6, 0.25), 0.5,
-                      emit=(1.0, 0.55, 0.2), emit_strength=4.0)
-    M["flame"] = mat("Flame", (1, 0.6, 0.2), 1, emit=(1.0, 0.5, 0.15), emit_strength=12)
-    M["fire"] = mat("Fire", (0, 0, 0), 1, emit=(1.0, 0.16, 0.0), emit_strength=2.5)
+    M["shadow"] = mat("ShadowCloth", (0.03, 0.03, 0.04), 0.9)        # party colour
+    M["window"] = mat("WindowWarm", (1.0, 0.6, 0.25), 0.5, emit=(1.0, 0.55, 0.2), emit_strength=1.2)
     M["firecore"] = mat("FireCore", (0, 0, 0), 1, emit=(1.0, 0.42, 0.03), emit_strength=4)
-    M["ember"] = mat("Ember", (0.1, 0.02, 0.0), 1, emit=(1.0, 0.18, 0.02), emit_strength=8)
-    M["shadowfire"] = mat("ShadowFire", (0, 0, 0), 1, emit=(0.55, 0.25, 1.0), emit_strength=6)
     M["water"] = mat("Water", (0.08, 0.20, 0.30), 0.05)
-    M["tuft"] = mat("GrassTuft", (0.20, 0.42, 0.09), 0.9)
-    M["hedge"] = noisy_mat("Hedge", (0.08, 0.25, 0.06), (0.13, 0.33, 0.09), 5, 0.9)
-    M["leaf_violet"] = noisy_mat("LeafViolet", (0.30, 0.09, 0.34), (0.42, 0.15, 0.44), 9, 0.85)
-    M["soil"] = noisy_mat("Soil", (0.17, 0.10, 0.05), (0.23, 0.14, 0.08), 12, 1.0)
-    M["wisteria"] = mat("Wisteria", (0.42, 0.22, 0.75), 0.7)
-    M["wisteria2"] = mat("Wisteria2", (0.62, 0.45, 0.88), 0.7)
-    M["bloom_red"] = mat("BloomRed", (0.75, 0.08, 0.12), 0.6)
-    M["bloom_yellow"] = mat("BloomYellow", (0.95, 0.75, 0.15), 0.6)
-    M["bloom_white"] = mat("BloomWhite", (0.9, 0.88, 0.82), 0.6)
-    M["bloom_blue"] = mat("BloomBlue", (0.2, 0.35, 0.85), 0.6)
-    M["globe"] = mat("Driftglobe", (1.0, 0.9, 0.7), 0.2, emit=(1.0, 0.85, 0.6), emit_strength=18)
     M["bulb"] = mat("Bulb", (1.0, 0.8, 0.5), 0.3, emit=(1.0, 0.75, 0.4), emit_strength=10)
     M["foam"] = mat("Foam", (0.95, 0.9, 0.75), 0.9)
-    M["wax"] = mat("Wax", (0.95, 0.9, 0.75), 0.5)
-    M["leather"] = mat("Leather", (0.35, 0.16, 0.06), 0.6)
     M["party"] = [mat(f"Party{i}", c, 0.6) for i, c in enumerate(PARTY)]
     return M
 
@@ -238,21 +141,37 @@ def build_materials():
 W, D = 14.0, 12.0
 HALL = (6.9, 9.3)          # hall centre; front wall faces -y
 DORM = (2.1, 4.6)          # dormitory centre; front wall faces +x
-YARD = (8.2, 13.4, 0.8, 6.8)
+FIRE = (10.5, 3.9)         # bonfire in the right-front quarter; FIRE_DIRT is the trodden earth round it
+FIRE_DIRT = [(10.5, 3.9, 2.0), (9.4, 3.1, 1.1), (11.5, 5.0, 1.0), (11.6, 2.7, 0.9)]
 GATE_X = 6.9
+PLAZA, PLAZA_R = (5.2, 3.0), 1.05   # fountain plaza beside the gate path, facing the dorm
 
 
 def build_ground(M):
     box("Plinth", (W + 0.4, D + 0.4, 0.5), (W / 2, D / 2, -0.25), M["stone"], bev=0.05)
     box("PlinthLip", (W + 0.5, D + 0.5, 0.08), (W / 2, D / 2, -0.46), M["darkwood"], bev=0.02)
     box("Grass", (W, D, 0.08), (W / 2, D / 2, 0.04), M["grass"], bev=0.02)
-    x0, x1, y0, y1 = YARD
-    box("Yard", (x1 - x0, y1 - y0, 0.04), ((x0 + x1) / 2, (y0 + y1) / 2, 0.08), M["dirt"], bev=0.03)
-    cyl("Campground", 1.6, 0.03, (5.0, 3.6, 0.09), M["dirt"], verts=32)
+    # trodden earth around the bonfire, ragged at the edges where the grass creeps in
+    for i, (x, y, r) in enumerate(FIRE_DIRT):
+        cyl(f"FireDirt{i}", r, 0.03, (x, y, 0.08 + 0.002 * i), M["dirt"], verts=40)
+    # round paved plaza for the fountain: kerb ring and concentric courses of setts
+    px, py = PLAZA
+    cyl("Plaza", PLAZA_R, 0.04, (px, py, 0.09), M["flag"], verts=64)
+    box_ring = Batch()
+    for ring, (r, n) in enumerate(((PLAZA_R - 0.17, 26), (PLAZA_R - 0.38, 20))):
+        for k in range(n):
+            a = (k + 0.5 * ring) * 2 * math.pi / n
+            box_ring.box(M["stone"] if (k + ring) % 4 == 0 else M["flag"], (0.18, 2 * math.pi * r / n - 0.03, 0.02),
+                         (px + r * math.cos(a), py + r * math.sin(a), 0.115), rz=a)
+    for o in box_ring.build("PlazaSetts"):
+        bevel(o, 0.01, 2)
+    lib_shell("PlazaKerb", PLAZA_R + 0.06, PLAZA_R - 0.06, 0.08, 0.15, M["stone"], segs=64, loc=(px, py, 0))
     # flagstone path from the gate to the hall door, plus a branch to the dorm
     pts = [(GATE_X + random.uniform(-0.35, 0.35), y) for y in [0.3 + 0.42 * k for k in range(17)]]
     pts += [(3.7 + 0.42 * k, 4.6 + random.uniform(-0.2, 0.2)) for k in range(7)]
     for i, (x, y) in enumerate(pts):
+        if math.hypot(x - px, y - py) < PLAZA_R + 0.15:
+            continue
         for j in range(2 if y < 7 and x > 6 else 1):
             dx = (j - 0.5) * 0.5 if x > 6 else 0
             cyl(f"Flag{i}_{j}", random.uniform(0.17, 0.24), 0.04,
@@ -262,15 +181,17 @@ def build_ground(M):
 
 def free_spot(x, y):
     """True where grass tufts may grow (not on paths, yard or buildings)."""
-    blocked = [(0.6, 3.8, 1.2, 8.0), (3.4, 10.4, 7.0, 11.5), YARD, (6.2, 7.6, 0, 7.4),
-               (3.7, 6.3, 2.3, 4.9), (10.4, 13.7, 7.9, 11.7), (3.6, 6.3, 5.4, 6.8)]
+    if any(math.hypot(x - cx, y - cy) < r for cx, cy, r in FIRE_DIRT):
+        return False
+    blocked = [(0.6, 3.8, 1.2, 8.0), (3.4, 10.4, 7.0, 11.5), (6.2, 7.6, 0, 7.4),
+               (4.0, 6.4, 1.8, 4.2), (10.4, 13.7, 7.9, 11.7), (4.3, 5.8, 4.9, 6.4)]
     return not any(a <= x <= b and c <= y <= d for a, b, c, d in blocked)
 
 
 def build_grass(M):
     tuft = M["tuft"]
     n = 0
-    while n < 140:
+    while n < 200:
         x, y = random.uniform(0.5, W - 0.4), random.uniform(0.4, D - 0.5)
         if not free_spot(x, y):
             continue
@@ -292,9 +213,9 @@ def gable_prism(name, L, W_, h, z0, material):
     return mesh(name, v, f, material)
 
 
-def shingles(M, name, Lo, a, ze, ang, length, tw=0.3, step=0.19):
-    """All roof tiles of both slopes as one mesh: staggered rows of slightly jittered
-    tiles, each tile picking one of three slate tones."""
+def shingles(M, name, Lo, a, ze, ang, length, step=0.15):
+    """All roof shakes of both slopes as one mesh: rows of split-wood shakes of uneven
+    width and length, a little tilted and jittered, in three weathered tones plus moss."""
     verts, faces, mats = [], [], []
     corners = [(sx * 0.5, sy * 0.5, sz * 0.5) for sx in (-1, 1) for sy in (-1, 1) for sz in (-1, 1)]
     quads = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
@@ -305,37 +226,36 @@ def shingles(M, name, Lo, a, ze, ang, length, tw=0.3, step=0.19):
             y = side * (a - s * math.cos(ang))
             z = ze + s * math.sin(ang)
             ny, nz = side * math.sin(ang), math.cos(ang)
-            off = 0.1
-            n = int(2 * Lo / tw)
-            shift = 0.5 * tw if k % 2 else 0.0
-            for i in range(n + 1):
-                x = -Lo + shift + i * tw
-                x0, x1 = max(x - tw / 2, -Lo), min(x + tw / 2, Lo)
-                if x1 - x0 < 0.05:
-                    continue
-                rot = Euler((-side * (ang + 0.07) + random.uniform(-0.02, 0.02), 0,
-                             random.uniform(-0.03, 0.03))).to_matrix()
-                size = Vector((x1 - x0 - 0.02, 0.3, 0.035))
-                c = Vector(((x0 + x1) / 2, y + ny * off, z + nz * off + random.uniform(-0.005, 0.005)))
+            x = -Lo + random.uniform(0, 0.12)
+            while x < Lo - 0.04:
+                tw = random.uniform(0.12, 0.26)
+                x0, x1 = x, min(x + tw, Lo)
+                x = x1 + 0.012
+                rot = Euler((-side * (ang + 0.09) + random.uniform(-0.04, 0.04), random.uniform(-0.03, 0.03),
+                             random.uniform(-0.05, 0.05))).to_matrix()
+                ln = random.uniform(0.24, 0.32)
+                size = Vector((x1 - x0, ln, random.uniform(0.025, 0.04)))
+                c = Vector(((x0 + x1) / 2, y + ny * 0.1 - side * random.uniform(-0.02, 0.02) * math.cos(ang),
+                            z + nz * 0.1 + random.uniform(-0.008, 0.008)))
                 base = len(verts)
                 for cx, cy, cz in corners:
                     verts.append(c + rot @ Vector((cx * size.x, cy * size.y, cz * size.z)))
                 faces += [tuple(base + q for q in quad) for quad in quads]
-                mats += [random.choice((0, 0, 1, 2))] * 6
+                mats += [random.choices((0, 1, 2, 3), (6, 3, 1.2, 0.25))[0]] * 6
     me = bpy.data.meshes.new(name)
     me.from_pydata([tuple(v) for v in verts], [], faces)
-    for m in (M["slate"], M["slate2"], M["slate3"]):
+    for m in (M["shake"], M["shake2"], M["shake3"], M["moss"]):
         me.materials.append(m)
     for f, mi in zip(me.polygons, mats):
         f.material_index = mi
     o = bpy.data.objects.new(name, me)
     bpy.context.collection.objects.link(o)
-    bevel(o, 0.008, 2)
+    bevel(o, 0.006, 1)
     return o
 
 
 def roof(M, name, L, W_, H, h, ov=0.4):
-    """Slate roof with overlapping shingle rows; ridge along local x at height H + h."""
+    """Wooden shake roof; ridge along local x at height H + h, capped by two ridge boards."""
     parts = []
     a = W_ / 2 + ov
     slope = h / (W_ / 2)
@@ -347,8 +267,11 @@ def roof(M, name, L, W_, H, h, ov=0.4):
     length = math.hypot(a, top - ze)
     ang = math.atan2(top - ze, a)
     parts.append(shingles(M, name + "Tiles", Lo, a, ze, ang, length))
-    parts.append(cyl(name + "Ridge", 0.1, 2 * Lo + 0.1, (0, 0, top + 0.1), M["ridge"],
-                     rot=(0, math.pi / 2, 0), verts=16))
+    # ridge cap: two boards meeting at the apex
+    for side in (-1, 1):
+        parts.append(box(f"{name}Ridge{side}", (2 * Lo + 0.12, 0.24, 0.05),
+                         (0, side * 0.09 * math.cos(ang), top + 0.14 - 0.09 * math.sin(ang)),
+                         M["darkwood"], rot=(-side * ang, 0, 0), bev=0.01))
     # bargeboards along the gable edges
     for sx in (-1, 1):
         for side in (-1, 1):
@@ -358,7 +281,7 @@ def roof(M, name, L, W_, H, h, ov=0.4):
     return parts
 
 
-def window(M, name, w, h, shutters=True, light=8.0):
+def window(M, name, w, h, shutters=False, light=8.0):
     """Lit window built facing local -y with its glass centred on the origin."""
     p = [box(name + "Glass", (w, 0.06, h), (0, 0, 0), M["window"], bev=0),
          box(name + "MullV", (0.04, 0.09, h), (0, -0.01, 0), M["darkwood"], bev=0.005),
@@ -377,7 +300,7 @@ def window(M, name, w, h, shutters=True, light=8.0):
     return p
 
 
-def door(M, name, w, h, paint, arch=True):
+def door(M, name, w, h, paint, arch=False):
     """Plank door facing local -y; origin at the bottom centre of the doorway."""
     p = [box(name + "Leaf", (w, 0.08, h), (0, -0.02, h / 2), paint, bev=0.01)]
     for k in range(int(w / 0.18)):
@@ -395,20 +318,6 @@ def door(M, name, w, h, paint, arch=True):
     p.append(box(name + "Step", (w + 0.4, 0.4, 0.12), (0, -0.25, 0.06), M["flag"], bev=0.02))
     if arch:
         p.append(cyl(name + "Arch", w / 2, 0.08, (0, -0.02, h), paint, rot=(math.pi / 2, 0, 0), verts=24))
-    return p
-
-
-def lantern(M, name, loc, energy=40, color=(1.0, 0.62, 0.28)):
-    x, y, z = loc
-    p = [box(name + "Cap", (0.16, 0.16, 0.04), (x, y, z + 0.12), M["iron"], bev=0.005),
-         cone(name + "Top", 0.1, 0.0, 0.08, (x, y, z + 0.18), M["iron"], verts=4, smooth=False),
-         box(name + "Base", (0.14, 0.14, 0.03), (x, y, z - 0.11), M["iron"], bev=0.004),
-         box(name + "Glow", (0.1, 0.1, 0.18), (x, y, z), M["flame"], bev=0.01)]
-    for sx in (-1, 1):
-        for sy in (-1, 1):
-            p.append(box(f"{name}Bar{sx}{sy}", (0.015, 0.015, 0.22), (x + sx * 0.065, y + sy * 0.065, z),
-                         M["iron"], bev=0))
-    p.append(point_light(name + "Light", (x, y, z), energy, color, radius=0.08))
     return p
 
 
@@ -453,8 +362,8 @@ def house(M, name, L, W_, H, roof_h, loc, rz, faces, stone_h=0.9):
     dicts with panels, braces, windows [(x, z, w, h)] and doors [(x, w, h, paint)]."""
     root = group(name, [], loc, rz)
     body = [box(name + "Base", (L, W_, stone_h), (0, 0, stone_h / 2 + 0.08), M["stone"], bev=0.03),
-            box(name + "Wall", (L - 0.06, W_ - 0.06, H - stone_h), (0, 0, (H + stone_h) / 2), M["plaster"], bev=0),
-            gable_prism(name + "Gable", L - 0.06, W_ - 0.06, roof_h, H, M["plaster"])]
+            box(name + "Wall", (L - 0.06, W_ - 0.06, H - stone_h), (0, 0, (H + stone_h) / 2), M["planks"], bev=0),
+            gable_prism(name + "Gable", L - 0.06, W_ - 0.06, roof_h, H, M["planks"])]
     body += roof(M, name + "Roof", L, W_, H, roof_h)
     for o in body:
         o.parent = root
@@ -476,35 +385,13 @@ def house(M, name, L, W_, H, roof_h, loc, rz, faces, stone_h=0.9):
 
 # ---------------------------------------------------------------- shadow emblem
 
-def emblem(M, name, r):
-    """Eclipse sigil in the local xz plane facing -y: black sun, silver corona and rays."""
-    rot = (math.pi / 2, 0, 0)
-    p = [cyl(name + "Corona", r * 0.62, 0.01, (0, 0, 0), M["silver"], rot=rot, verts=40, smooth=False),
-         cyl(name + "Sun", r * 0.55, 0.012, (r * 0.08, -0.004, r * 0.05), M["void"], rot=rot, verts=40,
-             smooth=False),
-         torus(name + "Ring", r * 0.8, r * 0.035, (0, 0, 0), M["silver"], rot=rot)]
-    for k in range(8):
-        a = k * math.pi / 4 + math.pi / 8
-        ln = r * (0.28 if k % 2 else 0.18)
-        rr = r * 0.8 + ln / 2 + r * 0.05
-        p.append(box(f"{name}Ray{k}", (r * 0.05, 0.008, ln), (rr * math.cos(a), 0, rr * math.sin(a)),
-                     M["silver"], rot=(0, math.pi / 2 - a, 0), bev=0))
-    # a dagger driven down through the eclipse
-    p.append(box(name + "Blade", (r * 0.1, 0.01, r * 1.4), (0, -0.012, -r * 0.2), M["silver"], bev=0))
-    p.append(box(name + "Guard", (r * 0.5, 0.012, r * 0.07), (0, -0.014, r * 0.55), M["silver"], bev=0))
-    p.append(box(name + "Grip", (r * 0.07, 0.012, r * 0.3), (0, -0.014, r * 0.75), M["shadow_trim"], bev=0))
-    p.append(sphere(name + "Pommel", r * 0.06, (0, -0.014, r * 0.93), M["silver"], segs=8))
-    return p
-
-
 def banner(M, name, w, h, rod=True):
     """Swallowtail banner hanging from its top edge at the origin, facing -y."""
     notch = w * 0.3
     outline = [(-w / 2, 0), (w / 2, 0), (w / 2, -h), (0, -h + notch), (-w / 2, -h)]
     p = [mesh(name + "Trim", [(x * 1.06, 0, z * 1.03 + 0.0) for x, z in outline], [range(5)], M["shadow_trim"]),
          mesh(name + "Cloth", [(x, -0.004, z - 0.01) for x, z in outline], [range(5)], M["shadow"])]
-    e = group(name + "Sigil", emblem(M, name + "Sigil", w * 0.32), (0, -0.01, -h * 0.4))
-    p.append(e)
+    p.append(shadow_emblem.build(name + "Sigil", (0, -0.01, -h * 0.4), radius=w * 0.32))
     if rod:
         p.append(box(name + "Rod", (w + 0.2, 0.04, 0.04), (0, 0, 0.02), M["iron"], bev=0.005))
         for sx in (-1, 1):
@@ -517,24 +404,28 @@ def banner(M, name, w, h, rod=True):
 def build_hall(M):
     L, Wd, H = 6.0, 3.8, 3.4
     pw = L / 5
-    front = {"panels": 5, "light": 12,
+    front = {"panels": 5, "light": 4,
              "windows": [(-2 * pw, 1.95, 0.6, 1.0), (-pw, 1.95, 0.6, 1.0),
                          (pw, 1.95, 0.6, 1.0), (2 * pw, 1.95, 0.6, 1.0)],
              "doors": [(0, 0.95, 2.0, M["darkwood"])]}
-    side = {"panels": 3, "braces": [(0, 1), (2, -1)], "windows": [(0, 1.95, 0.6, 1.0)], "light": 12}
+    side = {"panels": 3, "braces": [(0, 1), (2, -1)], "windows": [(0, 1.95, 0.6, 1.0)], "light": 4}
     root = house(M, "Hall", L, Wd, H, 2.4, (*HALL, 0), 0, {"front": front, "right": side, "left": side,
                                                          "back": {"panels": 5}})
     cx, cy = HALL
     fy = cy - Wd / 2
-    # porch roof over the door on two posts
+    # gabled porch over the door on two posts; its ridge runs back into the main roof
+    py = fy - 1.3
     for sx in (-1, 1):
-        cyl(f"PorchPost{sx}", 0.07, 2.6, (cx + sx * 0.85, fy - 1.0, 1.38), M["darkwood"], verts=8)
-        lantern(M, f"PorchLantern{sx}", (cx + sx * 0.85, fy - 1.12, 2.15), energy=35)
-    porch = roof(M, "Porch", 2.0, 1.2, 2.7, 0.5, ov=0.15)
-    group("PorchRoof", porch, (cx, fy - 0.55, 0))
-    box("PorchBeam", (2.0, 0.12, 0.14), (cx, fy - 1.0, 2.68), M["darkwood"])
-    # crest over the porch and banners flanking the door
-    group("HallCrest", emblem(M, "HallCrest", 0.42), (cx, fy - 0.08, 3.85))
+        cyl(f"PorchPost{sx}", 0.07, 2.6, (cx + sx * 0.85, py, 1.38), M["darkwood"], verts=8)
+        lantern.build(f"PorchLantern{sx}", (cx + sx * 0.85, py - 0.12, 2.15 - lantern.BASE), energy=35)
+    porch = roof(M, "Porch", 1.6, 2.0, 2.7, 0.9, ov=0.15)
+    group("PorchRoof", porch, (cx, fy - 0.55, 0), math.pi / 2)
+    box("PorchBeam", (2.0, 0.12, 0.14), (cx, py, 2.68), M["darkwood"])
+    # boarded gable over the porch front, with the party crest on it
+    tri = mesh("PorchGable", [(cx - 0.95, py, 2.72), (cx + 0.95, py, 2.72), (cx, py, 3.58)], [(0, 1, 2)],
+               M["planks"], solid=0.06)
+    tri.modifiers["solid"].offset = 0
+    shadow_emblem.build("HallCrest", (cx, py - 0.05, 3.05), radius=0.26)
     for sx in (-1, 1):
         group(f"HallBanner{sx}", banner(M, f"HallBanner{sx}", 0.55, 1.5), (cx + sx * 1.8, fy - 0.12, 3.05))
     # chimney on the right gable
@@ -555,10 +446,10 @@ def build_dorm(M):
     doors, wins = [], []
     for i in range(5):
         x = -L / 2 + (i + 0.5) * pw
-        doors.append((x - 0.22, 0.62, 1.8, M["party"][i]))
+        doors.append((x - 0.22, 0.62, 1.8, M["wood"]))
         wins.append((x + 0.38, 1.6, 0.3, 0.55))
-    front = {"panels": 5, "windows": wins, "doors": doors, "light": 5}
-    side = {"panels": 2, "braces": [(0, 1), (1, -1)], "windows": [(0, 1.6, 0.4, 0.6)], "light": 5}
+    front = {"panels": 5, "windows": wins, "doors": doors, "light": 2}
+    side = {"panels": 2, "braces": [(0, 1), (1, -1)], "windows": [(0, 1.6, 0.4, 0.6)], "light": 2}
     root = house(M, "Dorm", L, Wd, H, 1.6, (*DORM, 0), math.pi / 2,
                  {"front": front, "right": side, "left": side, "back": {"panels": 5}}, stone_h=0.7)
     # per-room touches in dorm-local coords: colour pennant, number plaque, lantern
@@ -568,15 +459,14 @@ def build_dorm(M):
         for k in range(i + 1):
             p.append(sphere(f"DormPip{i}_{k}", 0.014, (x - 0.22 - 0.075 + k * 0.0375 * (1 if i else 0) + (0.075 if i == 0 else 0),
                                                        -Wd / 2 - 0.16, 2.22), M["silver"], segs=6))
-        p += lantern(M, f"DormLantern{i}", (x + 0.12, -Wd / 2 - 0.25, 2.05), energy=10)
+        p.append(lantern.build(f"DormLantern{i}", (x + 0.12, -Wd / 2 - 0.25, 2.05 - lantern.BASE), energy=10))
         p.append(box(f"DormBracket{i}", (0.03, 0.25, 0.03), (x + 0.12, -Wd / 2 - 0.13, 2.3), M["iron"], bev=0))
-        p.append(box(f"DormMat{i}", (0.6, 0.4, 0.02), (x - 0.22, -Wd / 2 - 0.55, 0.1), M["party"][i], bev=0.005))
+        p.append(box(f"DormMat{i}", (0.6, 0.4, 0.02), (x - 0.22, -Wd / 2 - 0.55, 0.1), M["burlap"], bev=0.005))
         group(f"DormRoom{i}", p, (*DORM, 0), math.pi / 2)
-    # little stovepipes on the roof, one per room
-    for i in range(5):
-        y = DORM[1] - L / 2 + (i + 0.5) * pw
-        cyl(f"Stovepipe{i}", 0.07, 0.7, (DORM[0] - 0.5, y + 0.3, H + 1.3), M["iron"], verts=10)
-        cone(f"StovepipeCap{i}", 0.13, 0.0, 0.1, (DORM[0] - 0.5, y + 0.3, H + 1.7), M["iron"], verts=10)
+    # one stone chimney against the front gable
+    chy = DORM[1] - L / 2 - 0.2
+    box("DormChimney", (0.55, 0.45, H + 2.3), (DORM[0] - 0.45, chy, (H + 2.3) / 2 + 0.05), M["stone"], bev=0.04)
+    box("DormChimneyCap", (0.68, 0.58, 0.12), (DORM[0] - 0.45, chy, H + 2.38), M["stone"], bev=0.03)
     return root
 
 
@@ -613,7 +503,7 @@ def build_walls(M):
     box("PalisadeRailL", (0.1, D - 0.3, 0.14), (0.36, D / 2, 1.6), M["darkwood"])
     # walkway lanterns on the palisade
     for i, (x, y) in enumerate(((3.5, D - 0.45), (9.5, D - 0.45), (0.45, 9.0))):
-        lantern(M, f"WallLantern{i}", (x, y, 1.9), energy=25)
+        lantern.build(f"WallLantern{i}", (x, y, 1.9 - lantern.BASE), energy=25)
 
     # low rail fence along the front and right edges, with a gap for the gate
     def fence(name, a, b, fixed, axis):
@@ -629,7 +519,9 @@ def build_walls(M):
             box(f"{name}Rail{z}", size, (*loc, z), M["wood"], rot=(0, 0, random.uniform(-0.01, 0.01)))
     fence("FenceFL", 0.2, GATE_X - 1.45, 0.2, "x")
     fence("FenceFR", GATE_X + 1.45, W - 0.2, 0.2, "x")
-    fence("FenceR", 0.2, D - 0.2, W - 0.2, "y")
+    # the right fence stops short of the patio, which opens onto the lane over a low kerb
+    fence("FenceR", 0.2, 7.9, W - 0.2, "y")
+    box("PatioKerb", (0.2, D - 0.2 - 7.9, 0.3), (W - 0.2, (D - 0.2 + 7.9) / 2, 0.2), M["flag"], bev=0.03)
 
     # gate: two heavy posts, a crossbeam and the hanging name board
     gx, gy = GATE_X, 0.2
@@ -637,7 +529,7 @@ def build_walls(M):
         box(f"GatePost{sx}", (0.32, 0.32, 3.4), (gx + sx * 1.3, gy, 1.75), M["log"], bev=0.03)
         cone(f"GatePostCap{sx}", 0.26, 0.0, 0.3, (gx + sx * 1.3, gy, 3.6), M["darkwood"], verts=4,
              rot=(0, 0, math.pi / 4), smooth=False)
-        lantern(M, f"GateLantern{sx}", (gx + sx * 1.3, gy - 0.32, 2.4), energy=45)
+        lantern.build(f"GateLantern{sx}", (gx + sx * 1.3, gy - 0.32, 2.4 - lantern.BASE), energy=45)
         box(f"GateBracket{sx}", (0.03, 0.2, 0.03), (gx + sx * 1.3, gy - 0.2, 2.62), M["iron"], bev=0)
         group(f"GateBanner{sx}", banner(M, f"GateBanner{sx}", 0.42, 1.25), (gx + sx * 1.3, gy - 0.2, 3.3))
     box("GateBeam", (3.2, 0.26, 0.26), (gx, gy, 3.2), M["log"], bev=0.03)
@@ -670,103 +562,111 @@ def text(name, body, loc, size, material, rz=0.0):
 
 # ---------------------------------------------------------------- training yard
 
-def dummy(M, name, loc, rz):
-    p = [cyl(name + "Post", 0.06, 1.7, (0, 0, 0.85), M["log"], verts=10),
-         box(name + "Arms", (0.9, 0.07, 0.07), (0, 0, 1.3), M["log"]),
-         sphere(name + "Body", 0.24, (0, 0, 1.1), M["burlap"], scale=(1, 0.75, 1.35), segs=14),
-         sphere(name + "Head", 0.14, (0, 0, 1.62), M["burlap"], segs=12),
-         cyl(name + "Belt", 0.2, 0.05, (0, 0, 0.95), M["rope"], verts=14),
-         box(name + "Foot", (0.6, 0.1, 0.08), (0, 0, 0.12), M["log"]),
-         box(name + "Foot2", (0.1, 0.6, 0.08), (0, 0, 0.12), M["log"])]
-    for sx in (-1, 1):
-        p.append(sphere(f"{name}Straw{sx}", 0.06, (sx * 0.47, 0, 1.3), M["straw"], scale=(1.4, 1, 1), segs=8))
-    # target cross painted on the chest
-    p.append(box(name + "MarkV", (0.03, 0.02, 0.22), (0, -0.18, 1.12), M["red"], bev=0))
-    p.append(box(name + "MarkH", (0.22, 0.02, 0.03), (0, -0.18, 1.12), M["red"], bev=0))
-    return group(name, p, loc, rz)
-
-
-def archery_target(M, name, loc, rz):
-    p = []
-    for k, (r, key) in enumerate(((0.45, "straw"), (0.38, "white"), (0.27, "red"), (0.17, "white"),
-                                  (0.08, "red"))):
-        p.append(cyl(f"{name}Ring{k}", r, 0.12 if k == 0 else 0.01, (0, -0.06 - 0.008 * k if k else 0, 1.05),
-                     M[key], rot=(math.pi / 2 - 0.15, 0, 0), verts=32))
-    for k, (dx, dz) in enumerate(((0.05, 0.08), (-0.15, -0.05), (0.2, 0.2))):
-        p.append(cyl(f"{name}Arrow{k}", 0.008, 0.6, (dx, -0.3, 1.05 + dz), M["wood"],
-                     rot=(math.pi / 2 - 0.25, 0, 0.1 * k), verts=6))
-    for sx in (-1, 1):
-        p.append(box(f"{name}Leg{sx}", (0.06, 0.06, 1.5), (sx * 0.3, 0.05, 0.75), M["log"], rot=(-0.15, 0, 0)))
-    p.append(box(name + "Prop", (0.06, 0.06, 1.4), (0, 0.4, 0.65), M["log"], rot=(0.4, 0, 0)))
-    return group(name, p, loc, rz)
-
-
-def barrel(M, name, loc, r=0.25, h=0.6):
+def tripod(M, name, loc, foot=0.6, apex=1.45):
+    """Three iron legs from the ground meeting at an apex, with a pot hung on a chain."""
     x, y, z = loc
-    cyl(name, r, h, (x, y, z + h / 2), M["wood"], verts=16)
-    for dz in (0.1, h - 0.1):
-        cyl(f"{name}Band{dz:.1f}", r + 0.01, 0.04, (x, y, z + dz), M["iron"], verts=16)
-    cyl(name + "Lid", r - 0.02, 0.02, (x, y, z + h), M["darkwood"], verts=16)
+    for k in range(3):
+        a = k * 2 * math.pi / 3 + 0.3
+        fx, fy = x + foot * math.cos(a), y + foot * math.sin(a)
+        d = Vector((x - fx, y - fy, apex))
+        u = d.normalized()
+        cyl(f"{name}Leg{k}", 0.02, d.length + 0.08, (fx + d.x / 2, fy + d.y / 2, z + apex / 2), M["iron"],
+            rot=(-math.asin(u.y), math.atan2(u.x, u.z), 0), verts=6)
+    torus(name + "Lash", 0.035, 0.012, (x, y, z + apex - 0.04), M["rope"], segs=12)
+    cyl(name + "Chain", 0.008, apex - 0.62, (x, y, z + (apex + 0.62) / 2), M["iron"], verts=6)
+    sphere(name + "Pot", 0.17, (x, y, z + 0.5), M["iron"], scale=(1, 1, 0.8), segs=14)
+    torus(name + "PotRim", 0.15, 0.015, (x, y, z + 0.6), M["iron"], segs=24)
 
 
-def crate(M, name, loc, s=0.45, rz=0.0):
-    box(name, (s, s, s), (loc[0], loc[1], loc[2] + s / 2), M["wood"], rot=(0, 0, rz), bev=0.02)
-    box(name + "Slat", (s + 0.01, s + 0.01, 0.06), (loc[0], loc[1], loc[2] + s / 2), M["darkwood"],
-        rot=(0, 0, rz), bev=0.01)
+def woodpile(M, name, x, y0, y1, rows=4):
+    """Split logs stacked against the fence (running along y) under a little shake roof."""
+    n = int((y1 - y0) / 0.17)
+    for r in range(rows):
+        for k in range(n - (r % 2)):
+            y = y0 + 0.085 + k * 0.17 + (0.085 if r % 2 else 0)
+            cyl(f"{name}Log{r}_{k}", 0.08 + random.uniform(-0.01, 0.01), 0.55, (x, y, 0.17 + r * 0.15),
+                M["log"], rot=(0, math.pi / 2, random.uniform(-0.1, 0.1)), verts=8)
+    for sy, y in ((0, y0 - 0.05), (1, y1 + 0.05)):
+        box(f"{name}Post{sy}", (0.08, 0.08, 1.15), (x + 0.2, y, 0.65), M["darkwood"])
+        box(f"{name}PostF{sy}", (0.08, 0.08, 0.95), (x - 0.3, y, 0.55), M["darkwood"])
+    box(name + "Roof", (0.85, y1 - y0 + 0.35, 0.05), (x - 0.05, (y0 + y1) / 2, 1.12), M["shake2"],
+        rot=(0, -0.25, 0))
 
 
 def build_yard(M):
-    # sparring ring: posts with rope strung between them
-    rx, ry, rr = 10.4, 3.9, 1.4
-    n = 8
-    for k in range(n):
-        a = k * 2 * math.pi / n
-        cyl(f"RingPost{k}", 0.06, 0.95, (rx + rr * math.cos(a), ry + rr * math.sin(a), 0.55), M["log"], verts=8)
-    for z in (0.55, 0.9):
-        torus(f"RingRope{z}", rr, 0.015, (rx, ry, z), M["rope"], segs=8)
-    # crossed practice swords dropped in the ring
-    for k, ang in enumerate((0.5, -0.4)):
-        g = [box(f"PracticeBlade{k}", (0.8, 0.06, 0.02), (0.2, 0, 0), M["wood"], bev=0.005),
-             box(f"PracticeGuard{k}", (0.04, 0.2, 0.03), (-0.2, 0, 0), M["darkwood"], bev=0.005),
-             cyl(f"PracticeGrip{k}", 0.018, 0.18, (-0.31, 0, 0), M["rope"], rot=(0, math.pi / 2, 0), verts=8)]
-        group(f"PracticeSword{k}", g, (rx + 0.2, ry - 0.2 + 0.15 * k, 0.12), ang)
-    # dummies along the right fence, facing the ring
-    for i, y in enumerate((2.0, 3.4, 4.8)):
-        dummy(M, f"Dummy{i}", (12.75, y, 0.1), math.radians(-90 + random.uniform(-15, 15)))
-    # archery lane at the back of the yard
-    for i, x in enumerate((9.3, 11.5)):
-        archery_target(M, f"Target{i}", (x, 6.3, 0.1), random.uniform(-0.15, 0.15))
-    # weapon rack by the front fence
-    wx, wy = 9.5, 1.15
-    box("YardRackBase", (1.6, 0.35, 0.1), (wx, wy, 0.15), M["darkwood"])
-    box("YardRackTop", (1.6, 0.12, 0.1), (wx, wy + 0.08, 1.25), M["darkwood"])
-    for sx in (-1, 1):
-        box(f"YardRackPost{sx}", (0.1, 0.1, 1.2), (wx + sx * 0.8, wy + 0.08, 0.7), M["darkwood"])
+    """Lived-in yard round the bonfire: log benches and a pot on a tripod, a woodpile with a
+    chopping block, barrels and crates, the party's lectern, staff rack and scrying orb, and
+    grass, trees and wild flowers creeping back in round the trodden earth."""
+    cx, cy = FIRE
+    cyl("FireGround", 1.0, 0.02, (cx, cy, 0.1), M["soil"], verts=32)
+    for k in range(11):
+        a = k * 2 * math.pi / 11
+        sphere(f"FireStone{k}", 0.13, (cx + 0.5 * math.cos(a), cy + 0.5 * math.sin(a), 0.14), M["stone"],
+               scale=(1, 1, 0.7), segs=8)
+    for k in range(4):
+        cyl(f"FireLog{k}", 0.07, 0.7, (cx, cy, 0.19), M["log"], rot=(math.pi / 2, 0, k * math.pi / 4), verts=8)
+    for k in range(10):
+        sphere(f"FireEmber{k}", 0.035, (cx + random.uniform(-0.25, 0.25), cy + random.uniform(-0.25, 0.25), 0.15),
+               M["ember"], segs=6)
+    fire(M, "Bonfire", (cx, cy, 0.2), 0.17, M["fire"], M["firecore"], (1.0, 0.45, 0.15), 320)
+    tripod(M, "Tripod", (cx, cy, 0.1))
+    for k, a in enumerate((0.35, 1.9, 3.3, 4.85)):
+        cyl(f"LogBench{k}", 0.17, 1.2, (cx + 1.45 * math.cos(a), cy + 1.45 * math.sin(a), 0.26), M["log"],
+            rot=(math.pi / 2, 0, a), verts=12)
+    # woodpile against the right fence, chopping block with an axe and a few split logs
+    woodpile(M, "Woodpile", 13.2, 2.4, 4.4)
+    bx, by = 12.45, 2.35
+    cyl("ChopBlock", 0.24, 0.45, (bx, by, 0.3), M["log"], verts=14)
+    cyl("ChopBlockTop", 0.22, 0.01, (bx, by, 0.53), M["straw"], verts=14)
+    axe = [cyl("AxeHandle", 0.02, 0.75, (0, 0, 0.3), M["wood"], verts=8),
+           box("AxeHead", (0.16, 0.03, 0.1), (0.06, 0, 0.0), M["steel"], bev=0.005)]
+    g = group("Axe", axe, (bx + 0.05, by - 0.02, 0.55))
+    g.rotation_euler = (0.0, -0.55, 0.4)
     for k in range(5):
-        x = wx - 0.6 + k * 0.3
-        if k % 2:
-            cyl(f"Spear{k}", 0.02, 2.0, (x, wy + 0.02, 1.1), M["wood"], rot=(-0.06, 0, 0), verts=8)
-            cone(f"SpearHead{k}", 0.04, 0.0, 0.2, (x, wy - 0.04, 2.2), M["steel"], verts=4, smooth=False)
-        else:
-            box(f"RackBlade{k}", (0.06, 0.015, 0.85), (x, wy + 0.0, 0.62), M["steel"], bev=0.003)
-            box(f"RackGuard{k}", (0.2, 0.04, 0.04), (x, wy, 1.08), M["brass"], bev=0.004)
-            cyl(f"RackGrip{k}", 0.016, 0.16, (x, wy, 1.18), M["darkwood"], verts=8)
-    # round shield leaning on the rack
-    cyl("YardShield", 0.32, 0.05, (wx + 1.05, wy - 0.05, 0.42), M["shadow_trim"], rot=(1.3, 0, 0.2), verts=32)
-    cyl("YardShieldBoss", 0.08, 0.08, (wx + 1.05, wy - 0.08, 0.43), M["iron"], rot=(1.3, 0, 0.2), verts=16)
-    # benches, barrels, hay
-    box("YardBench", (0.35, 1.6, 0.08), (8.55, 3.9, 0.5), M["wood"])
-    for sy in (-1, 1):
-        box(f"YardBenchLeg{sy}", (0.3, 0.08, 0.42), (8.55, 3.9 + sy * 0.65, 0.29), M["darkwood"])
-    barrel(M, "YardBarrel0", (8.5, 1.35, 0.1))
-    barrel(M, "YardBarrel1", (8.65, 1.9, 0.1), r=0.22, h=0.55)
+        a = random.uniform(0, 2 * math.pi)
+        cyl(f"Split{k}", 0.06, 0.4, (bx + 0.55 * math.cos(a), by + 0.55 * math.sin(a), 0.14), M["log"],
+            rot=(math.pi / 2, 0, random.uniform(0, math.pi)), verts=6, smooth=False)
+    # barrels and crates by the front fence
+    for i, (x, y, r, h) in enumerate(((8.55, 1.3, 0.25, 0.6), (8.7, 1.85, 0.22, 0.55), (9.1, 1.2, 0.23, 0.6))):
+        barrel.build(f"YardBarrel{i}", (x, y, 0.08), radius=r, height=h)
+    crate.build("YardCrate0", (9.65, 1.25, 0.08), 0.2, size=0.5)
+    crate.build("YardCrate1", (9.62, 1.27, 0.58), -0.15, size=0.4)
+    crate.build("YardCrate2", (10.2, 1.15, 0.08), 0.5, size=0.38)
+    sphere("GrainSack", 0.2, (9.3, 1.75, 0.25), M["burlap"], scale=(1, 0.8, 1.2), segs=12)
+    # the party's things at the back: lectern with a spellbook, staff rack, scrying orb
+    lx, ly = 9.0, 6.25
+    box("LecternFoot", (0.45, 0.35, 0.06), (lx, ly, 0.11), M["darkwood"])
+    box("LecternPost", (0.1, 0.1, 0.95), (lx, ly, 0.6), M["darkwood"])
+    box("LecternTop", (0.5, 0.38, 0.04), (lx, ly, 1.1), M["darkwood"], rot=(0.35, 0, 0))
+    book = open_book.build("YardSpellbook", (lx, ly - 0.01, 1.135), cover=M["shadow_trim"])
+    book.rotation_euler = (0.35, 0, 0)
+    wx, wy = 10.35, 6.35
+    weapon_rack.build("StaffRack", (wx, wy, 0.08), width=1.5)
+    for k, head in enumerate(("crystal", "orb", "crystal", "orb", "crystal")):
+        st = staff.build(f"RackStaff{k}", (wx - 0.6 + k * 0.3, wy - 0.03, 0.26), head=head, length=1.55,
+                         glow="arcane_cyan" if head == "orb" else None, light=False)
+        st.rotation_euler = (math.radians(4), 0, 0)
+    sx_, sy_ = 11.75, 6.3
+    cyl("ScryPillar", 0.14, 0.85, (sx_, sy_, 0.5), M["flag"], verts=16)
+    cyl("ScryCap", 0.2, 0.06, (sx_, sy_, 0.95), M["flag"], verts=16)
+    crystal_ball.build("ScryingOrb", (sx_, sy_, 0.98), radius=0.12, glass="arcane_cyan",
+                       light_color=(0.4, 0.8, 1.0))
     cyl("WaterTrough", 0.3, 1.2, (12.9, 6.3, 0.35), M["wood"], rot=(math.pi / 2, 0, math.pi / 2), verts=12)
-    for k in range(3):
-        box(f"Hay{k}", (0.7, 0.45, 0.4), (13.0 - 0.1 * k, 1.0 + 0.0 * k, 0.3 + 0.4 * (k == 2)), M["straw"],
-            rot=(0, 0, 0.1 * k), bev=0.05) if k < 2 else None
-    box("Hay2", (0.7, 0.45, 0.4), (12.95, 1.0, 0.7), M["straw"], rot=(0, 0, 0.3), bev=0.05)
-    # torch posts at the yard corners
-    for i, (x, y) in enumerate(((8.4, 6.6), (13.2, 6.7), (13.2, 1.0))):
+    pot = cauldron.build("YardCauldron", (12.2, 1.35, 0.08), brew=(1.0, 0.72, 0.18), rng=random)
+    pot.scale = (1.6, 1.6, 1.6)
+    # trees, shrubs and wild flowers round the edge of the trodden earth
+    tree.build("YardBirch", (8.6, 5.2, 0), height=2.9, crown=0.7, rng=random)
+    # only low shrubs at the front corner, so nothing blocks the view into the yard
+    for i, (x, y) in enumerate(((13.35, 4.75), (8.45, 2.6), (12.6, 0.6), (13.25, 1.0), (13.3, 1.7))):
+        bush.build(f"YardBush{i}", (x, y, 0.08), radius=random.uniform(0.28, 0.38),
+                   bloom=random.choice((None, "bloom_yellow", "bloom_white")), rng=random)
+    wild = ["bloom_white", "bloom_yellow", "bloom_blue", "bloom_pink", "bloom_red"]
+    for i, (x, y, rx, ry) in enumerate(((12.4, 5.9, 0.5, 0.3), (8.55, 4.4, 0.3, 0.5), (11.0, 1.0, 0.5, 0.25),
+                                        (12.7, 4.6, 0.3, 0.3), (8.5, 6.0, 0.3, 0.3))):
+        flower_patch.build(f"YardFlowers{i}", (x, y, 0.08), rx=rx, ry=ry, count=int(60 * rx * ry) + 6,
+                           colors=wild, rng=random)
+    # torch posts at the back corners
+    for i, (x, y) in enumerate(((8.4, 6.75), (13.25, 6.8))):
         cyl(f"Torch{i}", 0.05, 1.8, (x, y, 1.0), M["log"], verts=8)
         cone(f"TorchCup{i}", 0.09, 0.05, 0.14, (x, y, 1.95), M["iron"], rot=(math.pi, 0, 0), verts=10)
         fire(M, f"Torch{i}Fire", (x, y, 2.0), 0.06, M["fire"], M["firecore"], (1.0, 0.5, 0.18), 60)
@@ -774,110 +674,15 @@ def build_yard(M):
 
 # ---------------------------------------------------------------- props
 
-def pine(M, name, loc, h):
-    x, y, _ = loc
-    cyl(name + "Trunk", 0.12, h * 0.3, (x, y, h * 0.15), M["log"], verts=8)
-    for k in range(3):
-        r = h * (0.28 - 0.07 * k)
-        cone(f"{name}Tier{k}", r, 0.0, h * 0.42, (x, y, h * (0.32 + 0.2 * k) + h * 0.18), M["pine"],
-             rot=(0, 0, random.uniform(0, 1)), verts=8, smooth=False)
-
-
-def blob(name, r, loc, material, squash=1.0, strength=0.3):
-    """Lumpy foliage: an icosphere pushed around by a cloud texture."""
-    tex = bpy.data.textures.get("LeafNoise") or bpy.data.textures.new("LeafNoise", "CLOUDS")
-    tex.noise_scale = 0.3
-    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=r, location=loc)
-    o = bpy.context.object
-    o.name = name
-    o.scale.z = squash
-    d = o.modifiers.new("disp", "DISPLACE")
-    d.texture = tex
-    d.strength = strength
-    d.texture_coords = "GLOBAL"
-    bpy.ops.object.shade_smooth()
-    return assign(o, material)
-
-
-def leafy(M, name, loc, h, r=1.0, leaf=None):
-    x, y, _ = loc
-    cone(name + "Trunk", 0.16, 0.07, h * 0.65, (x, y, h * 0.32), M["log"], verts=10)
-    for k in range(4):
-        off = (0, 0, 0) if k == 0 else (random.uniform(-0.45, 0.45) * r, random.uniform(-0.45, 0.45) * r,
-                                        random.uniform(-0.25, 0.35) * r)
-        blob(f"{name}Crown{k}", r * random.uniform(0.6, 0.85),
-             (x + off[0], y + off[1], h * 0.75 + off[2]), leaf or M["leaf"], strength=0.35 * r)
-
-
-def bush(M, name, loc, r=0.35, leaf=None, bloom=None):
-    x, y, _ = loc
-    blob(name, r, (x, y, 0.08 + r * 0.55), leaf or M["hedge"], squash=0.75, strength=0.12)
-    if bloom:
-        for k in range(6):
-            a = random.uniform(0, 2 * math.pi)
-            sphere(f"{name}Bloom{k}", 0.04, (x + r * 0.8 * math.cos(a), y + r * 0.8 * math.sin(a),
-                                              0.08 + r * random.uniform(0.6, 1.0)), bloom, segs=6)
-
-
-def flowers(M, name, cx, cy, rx, ry, n, cols, z=0.08):
-    """Scatter n little flowers (leaf tuft + bloom) inside an ellipse."""
-    for k in range(n):
-        a, d = random.uniform(0, 2 * math.pi), math.sqrt(random.random())
-        x, y = cx + rx * d * math.cos(a), cy + ry * d * math.sin(a)
-        hgt = random.uniform(0.12, 0.26)
-        cone(f"{name}Stem{k}", 0.04, 0.0, hgt, (x, y, z + hgt / 2), M["tuft"], verts=5, smooth=False)
-        sphere(f"{name}Bloom{k}", random.uniform(0.03, 0.045), (x, y, z + hgt), random.choice(cols), segs=6)
-
-
-def flower_bed(M, name, cx, cy, sx, sy, cols, n=None):
-    """Raised bed with a stone kerb, dark soil and flowers."""
-    box(name + "Kerb", (sx, sy, 0.22), (cx, cy, 0.15), M["flag"], bev=0.03)
-    box(name + "Soil", (sx - 0.1, sy - 0.1, 0.04), (cx, cy, 0.25), M["soil"], bev=0)
-    flowers(M, name, cx, cy, sx / 2 - 0.08, sy / 2 - 0.08, n or int(sx * sy * 22), cols, z=0.26)
-
-
-def driftglobe(M, name, loc, h=2.3, post=True, color=(1.0, 0.82, 0.6), energy=55):
-    """Waterdeep street light: a glowing globe hovering over an iron cradle."""
-    x, y, z = loc
-    if post:
-        cyl(name + "Post", 0.05, h, (x, y, z + h / 2), M["iron"], verts=10)
-        cyl(name + "Foot", 0.13, 0.14, (x, y, z + 0.07), M["iron"], verts=10)
-        torus(name + "Cradle", 0.14, 0.014, (x, y, z + h + 0.02), M["iron"], segs=24)
-        z = z + h + 0.22
-    sphere(name + "Globe", 0.1, (x, y, z), M["globe"], segs=16)
-    point_light(name + "Light", (x, y, z), energy, color, radius=0.1)
-
-
 def build_courtyard(M):
-    """Back-right corner: patio under a wisteria pergola with a long feasting table."""
+    """Back-right corner: patio under a grapevine pergola with a long feasting table."""
     px, py = 12.15, 9.75
     box("Patio", (3.0, 3.6, 0.04), (px, py, 0.09), M["flag"], bev=0.02)
     for i in range(6):
         for j in range(7):
             box(f"PatioTile{i}_{j}", (0.46, 0.48, 0.02), (px - 1.25 + i * 0.5, py - 1.5 + j * 0.5, 0.115),
                 M["flag"] if (i + j) % 3 else M["stone"], rot=(0, 0, random.uniform(-0.03, 0.03)), bev=0.015)
-    # pergola: six posts, two long beams, cross slats
-    for sx in (-1, 1):
-        for k in range(3):
-            box(f"PergolaPost{sx}{k}", (0.14, 0.14, 2.5), (px + sx * 1.25, py - 1.5 + k * 1.5, 1.35), M["wood"])
-        box(f"PergolaBeam{sx}", (0.12, 3.8, 0.2), (px + sx * 1.25, py, 2.65), M["wood"])
-    for k in range(9):
-        box(f"PergolaSlat{k}", (3.0, 0.07, 0.12), (px, py - 1.8 + k * 0.45, 2.81), M["wood"])
-    # wisteria and vines along the top, with violet blossoms hanging down
-    for k in range(10):
-        blob(f"Vine{k}", random.uniform(0.35, 0.5),
-             (px + random.uniform(-1.3, 1.3), py + random.uniform(-1.7, 1.7), 2.95), M["leaf"],
-             squash=0.45, strength=0.18)
-    for k in range(34):
-        x, y = px + random.uniform(-1.4, 1.4), py + random.uniform(-1.8, 1.8)
-        ln = random.uniform(0.25, 0.5)
-        cone(f"Wisteria{k}", 0.07, 0.01, ln, (x, y, 2.75 - ln / 2), random.choice((M["wisteria"], M["wisteria2"])),
-             rot=(math.pi, 0, 0), verts=7)
-    for sx in (-1, 1):
-        for k in (0, 2):
-            for j in range(3):
-                blob(f"PostVine{sx}{k}{j}", 0.13, (px + sx * 1.25, py - 1.5 + k * 1.5, 0.6 + j * 0.7),
-                     M["leaf"], strength=0.06)
+    pergola.build("Pergola", (px, py, 0.1))
     # feasting table with benches, food and drink
     box("FeastTop", (1.0, 2.8, 0.08), (px, py, 0.86), M["wood"], bev=0.02)
     for sy in (-1, 1):
@@ -911,7 +716,7 @@ def build_courtyard(M):
         point_light(f"FestoonLight{sx}", (px + sx * 1.1, py, 2.3), 45, (1.0, 0.75, 0.45), radius=0.8)
     # dice game on an upturned barrel beside the patio
     bx, by = 10.75, 8.3
-    barrel(M, "DiceBarrel", (bx, by, 0.08), r=0.28, h=0.75)
+    barrel.build("DiceBarrel", (bx, by, 0.08), radius=0.28, height=0.75)
     for k in range(3):
         box(f"Die{k}", (0.05, 0.05, 0.05), (bx - 0.08 + 0.07 * k, by + 0.03 * k, 0.86), M["white"],
             rot=(0, 0, random.uniform(0, 1)), bev=0.008)
@@ -922,83 +727,71 @@ def build_courtyard(M):
         cyl(f"BetCoin{k}", 0.025, 0.008, (bx - 0.12, by - 0.1, 0.835 + 0.008 * k), M["brass"], verts=10)
     for k, a in enumerate((0.4, 2.6)):
         cyl(f"Stool{k}", 0.17, 0.45, (bx + 0.6 * math.cos(a), by + 0.6 * math.sin(a), 0.31), M["wood"], verts=12)
-    # violet-leaved ornamental maple: a quiet nod to the party colours
-    leafy(M, "ShadowMaple", (13.15, 7.6, 0), 3.4, r=0.95, leaf=M["leaf_violet"])
-    flowers(M, "MapleBed", 13.15, 7.6, 0.55, 0.55, 18, [M["bloom_white"], M["wisteria"]])
-    for i, (x, y) in enumerate(((10.75, 11.3), (13.5, 11.3))):
-        driftglobe(M, f"PatioGlobe{i}", (x, y, 0.08))
+    # apple tree in front of the patio, clear of the pergola beams; flowers around its foot
+    tree.build("AppleTree", (12.35, 6.95, 0), height=2.6, crown=0.6, clumps=7, lumpy=True, fruit="apple",
+               rng=random)
+    flower_patch.build("AppleBed", (12.35, 6.95, 0.08), rx=0.35, ry=0.3, count=12,
+                       colors=["bloom_white", "bloom_pink", "bloom_yellow"], rng=random)
+    # enchanted candles floating over the feast, as in the homebase
+    for k in range(7):
+        candle.build(f"FloatCandle{k}", (px + random.uniform(-0.35, 0.35), py - 1.2 + k * 0.4,
+                                          random.uniform(1.55, 1.95)), height=random.uniform(0.1, 0.18))
 
 
 def build_garden(M):
-    warm = [M["bloom_red"], M["bloom_yellow"], M["bloom_white"]]
-    cool = [M["wisteria"], M["bloom_white"], M["bloom_blue"]]
+    warm = ["bloom_red", "bloom_yellow", "bloom_white", "bloom_orange"]
+    cool = ["bloom_blue", "bloom_white", "bloom_pink"]
     # beds along the hall front, either side of the porch
     hx, hy = HALL
-    flower_bed(M, "BedHallL", hx - 2.0, hy - 2.3, 1.6, 0.45, warm)
-    flower_bed(M, "BedHallR", hx + 2.0, hy - 2.3, 1.6, 0.45, cool)
-    # beds and tufts along the main path
-    for i, y in enumerate((1.6, 4.0)):
-        flowers(M, f"PathL{i}", GATE_X - 1.2, y, 0.25, 0.7, 14, warm)
-        flowers(M, f"PathR{i}", GATE_X + 1.2, y, 0.25, 0.7, 14, cool)
+    flower_bed.build("BedHallL", (hx - 2.0, hy - 2.3, 0.08), width=1.6, depth=0.45, colors=warm, rng=random)
+    flower_bed.build("BedHallR", (hx + 2.0, hy - 2.3, 0.08), width=1.6, depth=0.45, colors=cool, rng=random)
+    # flowers along the path to the hall
+    for i, (x, colors) in enumerate(((GATE_X - 0.9, warm), (GATE_X + 0.9, cool))):
+        flower_patch.build(f"HallPath{i}", (x, 5.75, 0.08), rx=0.22, ry=0.45, count=12, colors=colors, rng=random)
     # shrubs along the palisade and fences
     for i, x in enumerate((4.3, 5.4, 9.5, 10.4)):
-        bush(M, f"BackBush{i}", (x, D - 0.7, 0), r=random.uniform(0.35, 0.5),
-             bloom=random.choice((None, M["bloom_red"], M["wisteria"])))
+        bush.build(f"BackBush{i}", (x, D - 0.7, 0.08), radius=random.uniform(0.35, 0.5),
+                   bloom=random.choice((None, "bloom_red", "bloom_pink")), rng=random)
     for i, y in enumerate((0.9, 8.4, 9.6, 10.8)):
-        bush(M, f"LeftBush{i}", (0.8, y, 0), r=random.uniform(0.3, 0.45),
-             bloom=None if i % 2 else M["bloom_yellow"])
+        bush.build(f"LeftBush{i}", (0.8, y, 0.08), radius=random.uniform(0.3, 0.45),
+                   bloom=None if i % 2 else "bloom_yellow", rng=random)
     for i, x in enumerate((1.0, 2.0, 3.0, 4.0, 5.2)):
-        bush(M, f"FrontBush{i}", (x, 0.6, 0), r=random.uniform(0.25, 0.35),
-             bloom=random.choice((M["bloom_red"], M["bloom_white"], M["wisteria"])))
-    for i, y in enumerate((7.4, 8.2)):
-        bush(M, f"RightBush{i}", (13.5, y + 1.2 * (i == 1), 0), r=0.32)
+        bush.build(f"FrontBush{i}", (x, 0.6, 0.08), radius=random.uniform(0.25, 0.35),
+                   bloom=random.choice(("bloom_red", "bloom_white", "bloom_pink")), rng=random)
     # trees, mostly in the back-left corner behind the dorm
-    leafy(M, "OakA", (1.5, 9.0, 0), 3.6, r=1.1)
-    leafy(M, "OakB", (2.9, 10.7, 0), 3.2, r=0.95)
-    pine(M, "PineA", (1.2, 10.9, 0), 4.4)
-    leafy(M, "Birch", (10.4, 11.1, 0), 3.0, r=0.8)
-    flowers(M, "OakMeadow", 2.4, 9.8, 1.0, 1.4, 40, warm + cool)
+    tree.build("OakA", (1.5, 9.0, 0), height=3.6, crown=1.1, rng=random)
+    tree.build("OakB", (2.9, 10.7, 0), height=3.2, crown=0.95, rng=random)
+    tree.build("PineA", (1.2, 10.9, 0), kind="pine", height=4.4, rng=random)
+    tree.build("Birch", (10.4, 11.1, 0), height=3.0, crown=0.8, rng=random)
+    flower_patch.build("OakMeadow", (2.4, 9.8, 0.08), rx=1.0, ry=1.4, count=45, colors=warm + cool, rng=random)
+    # the party's crystal garden: arcane crystals pushing up through the meadow
+    for i, (x, y, s) in enumerate(((2.2, 9.6, 1.0), (3.3, 9.5, 0.7), (1.9, 10.3, 0.8), (3.6, 10.2, 0.6))):
+        crystal_cluster.build(f"Crystals{i}", (x, y, 0.08), random.uniform(0, 6), size=s, rng=random,
+                              light=i < 2)
     # herb bed for the party cook
-    flower_bed(M, "Herbs", 3.0, 8.35, 1.0, 0.5, [M["tuft"], M["bloom_white"]], n=14)
+    flower_bed.build("Herbs", (3.0, 8.35, 0.08), width=1.0, depth=0.5, colors=["tuft", "bloom_white"], count=14,
+                     rng=random)
     # window boxes under the hall's front windows
     pw = 6.0 / 5
     for i, dx in enumerate((-2 * pw, -pw, pw, 2 * pw)):
         x = hx + dx
         box(f"WinBox{i}", (0.7, 0.2, 0.16), (x, hy - 1.9 - 0.2, 1.33), M["darkwood"], bev=0.01)
-        flowers(M, f"WinBox{i}", x, hy - 2.1, 0.3, 0.06, 7, warm if i < 2 else cool, z=1.38)
-    # floating driftglobes over the yard and lamp posts along the path
+        flower_patch.build(f"WinBox{i}Flowers", (x, hy - 2.1, 1.38), rx=0.3, ry=0.06, count=7,
+                           colors=warm if i < 2 else cool, size=0.8, rng=random)
+    # floating driftglobes over the yard; wrought-iron lamps by the plaza and along the path
     for i, (x, y, z) in enumerate(((9.6, 3.0, 3.0), (11.6, 5.0, 3.2))):
-        driftglobe(M, f"YardGlobe{i}", (x, y, z), post=False, energy=90)
-    for i, (x, y) in enumerate(((GATE_X - 0.85, 2.6), (GATE_X + 0.85, 2.6), (GATE_X - 0.85, 5.3),
-                                (GATE_X + 0.85, 5.3), (3.9, 5.3))):
-        driftglobe(M, f"PathGlobe{i}", (x, y, 0.08))
+        driftglobe.build(f"YardGlobe{i}", (x, y, z), post=False, energy=90)
+    for i, y in enumerate((1.6, 3.4, 5.0)):
+        lamp_post.build(f"PathLamp{i}", (GATE_X + 0.85, y, 0.08), -math.pi / 2, arms=1, energy=90)
 
 
 def build_props(M):
-    # campfire with log benches between the dorm and the path
-    cx, cy = 5.0, 3.6
-    for k in range(9):
-        a = k * 2 * math.pi / 9
-        sphere(f"FireStone{k}", 0.11, (cx + 0.38 * math.cos(a), cy + 0.38 * math.sin(a), 0.12), M["stone"],
-               scale=(1, 1, 0.7), segs=8)
-    for k in range(3):
-        cyl(f"FireLog{k}", 0.06, 0.55, (cx, cy, 0.17), M["log"], rot=(math.pi / 2, 0, k * math.pi / 3), verts=8)
-    for k in range(8):
-        sphere(f"FireEmber{k}", 0.03, (cx + random.uniform(-0.2, 0.2), cy + random.uniform(-0.2, 0.2), 0.13),
-               M["ember"], segs=6)
-    fire(M, "Campfire", (cx, cy, 0.18), 0.13, M["fire"], M["firecore"], (1.0, 0.45, 0.15), 260)
-    for k, a in enumerate((0.3, 2.4, 4.3)):
-        cyl(f"LogBench{k}", 0.17, 1.1, (cx + 1.1 * math.cos(a), cy + 1.1 * math.sin(a), 0.24), M["log"],
-            rot=(math.pi / 2, 0, a), verts=12)
-    # a pot on a tripod over the fire
-    for k in range(3):
-        a = k * 2 * math.pi / 3
-        cyl(f"Tripod{k}", 0.02, 1.3, (cx + 0.25 * math.cos(a), cy + 0.25 * math.sin(a), 0.65), M["iron"],
-            rot=(0.35 * math.sin(a), -0.35 * math.cos(a), 0), verts=6)
-    sphere("Pot", 0.15, (cx, cy, 0.78), M["iron"], scale=(1, 1, 0.8), segs=14)
+    # tiered fountain on its own little plaza beside the gate path
+    px, py = PLAZA
+    fountain.build("Fountain", (px, py, 0.11), radius=0.72)
 
-    # well in front of the hall's left wing
-    wx, wy = 4.8, 6.2
+    # well out on the lawn between the fountain and the hall, clear of both paths
+    wx, wy = 5.05, 5.65
     cyl("WellRing", 0.55, 0.75, (wx, wy, 0.45), M["stone"], verts=16)
     cyl("WellWater", 0.45, 0.02, (wx, wy, 0.78), M["water"], verts=24)
     cyl("WellLip", 0.58, 0.08, (wx, wy, 0.84), M["flag"], verts=16)
@@ -1009,10 +802,65 @@ def build_props(M):
     cyl("WellBucket", 0.1, 0.16, (wx, wy, 1.1), M["wood"], verts=12)
     group("WellRoof", roof(M, "WellRoof", 1.0, 1.0, 2.15, 0.45, ov=0.15), (wx, wy, 0))
     for k in range(3):
-        barrel(M, f"DormBarrel{k}", (3.7, 1.2 + 0.5 * k, 0.08), r=0.2, h=0.5)
+        barrel.build(f"DormBarrel{k}", (3.62, 1.2 + 0.5 * k, 0.08), radius=0.2, height=0.5)
 
 
 # ---------------------------------------------------------------- scene setup
+
+# ---------------------------------------------------------------- animation
+
+FPS = 24
+FRAMES = 48           # 2 s loop; lib.keyframe defaults to the same fps and length
+
+
+def animate():
+    """Loop the living bits over 2 s: flickering fires, bobbing candles and driftglobes,
+    the fountain orb and its ring, rising cauldron bubbles and breathing magic lights."""
+    scene = bpy.context.scene
+    scene.render.fps = FPS
+    scene.frame_start, scene.frame_end = 1, FRAMES
+    obs = bpy.data.objects
+
+    for o in list(obs):
+        n = o.name
+        # seeded by name, so adding objects to the scene does not reshuffle everyone's phase
+        rnd = random.Random(n)
+        ph = rnd.uniform(0, 2 * math.pi)
+        if "Flame" in n and o.type == "MESH" and "Candle" not in n:
+            base = o.scale.copy()
+            k = rnd.choice((3, 4, 5))
+            keyframe(o, "scale", lambda t, b=base, k=k, ph=ph:
+                     (b.x, b.y, b.z * (1 + 0.18 * wave(t, k, ph) + 0.07 * wave(t, 9, ph * 2))))
+        elif n.endswith("Flame") and "Candle" in n:
+            base = o.scale.copy()
+            keyframe(o, "scale", lambda t, b=base, ph=ph: (b.x, b.y, b.z * (1 + 0.15 * wave(t, 6, ph))))
+        elif o.type == "EMPTY" and n.startswith(("FloatCandle", "YardGlobe")) and not o.parent:
+            base = o.location.copy()
+            amp = 0.04 if n.startswith("FloatCandle") else 0.08
+            keyframe(o, "location", lambda t, b=base, ph=ph, a=amp: (b.x, b.y, b.z + a * wave(t, 1, ph)))
+        elif n in ("FountainOrb", "FountainOrbLight"):
+            base = o.location.copy()
+            keyframe(o, "location", lambda t, b=base: (b.x, b.y, b.z + 0.04 * wave(t, 1)))
+        elif n == "FountainOrbRing":
+            r0 = o.rotation_euler.copy()
+            keyframe(o, "rotation_euler", lambda t, r=r0: (r.x, r.y, r.z + math.pi * t))
+        elif "CauldronBubble" in n:
+            base = o.location.copy()
+            off = rnd.random()
+            keyframe(o, "location", lambda t, b=base, off=off: (b.x, b.y, b.z + 0.3 * ((t / 2 + off) % 1.0)))
+
+    def pulse(name, depth, k, ph=0.0):
+        if name not in obs:
+            return
+        ld = obs[name].data
+        base = ld.energy
+        keyframe(None, "energy", lambda t: base * (1 + depth * wave(t, k, ph)), target=ld)
+
+    for name, depth, k in (("BonfireLight", 0.2, 5), ("Torch0FireLight", 0.2, 4), ("Torch1FireLight", 0.2, 3),
+                           ("FountainOrbLight", 0.3, 1), ("ScryingOrbLight", 0.35, 1),
+                           ("YardCauldronGlow", 0.25, 3), ("Crystals0Light", 0.3, 1), ("Crystals1Light", 0.3, 2)):
+        pulse(name, depth, k, random.Random(name).uniform(0, 6))
+
 
 def set_emission(material, strength, base=None):
     bsdf = material.node_tree.nodes["Principled BSDF"]
@@ -1031,7 +879,24 @@ def apply_daylight(M):
     set_emission(M["bulb"], 2.0)
 
 
-def setup_world_and_camera(samples, shot="wide", time="day"):
+def paper_backdrop(world, color=(0.97, 0.94, 0.88), strength=1.5):
+    """Show a flat off-white backdrop to the camera while the sky keeps lighting the scene
+    (strength above 1 so AgX does not dull it to grey)."""
+    nt = world.node_tree
+    out = nt.nodes["World Output"]
+    sky = out.inputs["Surface"].links[0].from_node
+    paper = nt.nodes.new("ShaderNodeBackground")
+    paper.inputs["Color"].default_value = (*color, 1)
+    paper.inputs["Strength"].default_value = strength
+    lp = nt.nodes.new("ShaderNodeLightPath")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(lp.outputs["Is Camera Ray"], mix.inputs["Fac"])
+    nt.links.new(sky.outputs["Background"], mix.inputs[1])
+    nt.links.new(paper.outputs["Background"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+
+
+def setup_world_and_camera(samples, shot="wide", time="day", backdrop="sky"):
     scene = bpy.context.scene
     world = bpy.data.worlds.new("World")
     scene.world = world
@@ -1051,6 +916,8 @@ def setup_world_and_camera(samples, shot="wide", time="day"):
     nt.links.new(sep.outputs["Z"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
     bg.inputs["Strength"].default_value = 1.0 if night else 0.8
+    if backdrop == "paper":
+        paper_backdrop(world)
 
     def aimed(name, kind, loc, energy, color, size, target=(W / 2, D / 2, 0)):
         ld = bpy.data.lights.new(name, kind)
@@ -1067,14 +934,14 @@ def setup_world_and_camera(samples, shot="wide", time="day"):
         return o
 
     if night:
-        # moon from the front-left so the hall facade catches it; violet rim from behind
+        # moon from the front-left so the hall facade catches it; cool rim from behind
         # so roofs and trees separate from the sky; soft fill from the camera side
         aimed("Moon", "SUN", (-8, -14, 18), 1.2, (0.6, 0.7, 1.0), 2)
-        aimed("Rim", "AREA", (8, 32, 14), 4000, (0.55, 0.45, 1.0), 14)
+        aimed("Rim", "AREA", (8, 32, 14), 4000, (0.5, 0.6, 1.0), 14)
         aimed("Fill", "AREA", (26, -16, 20), 2200, (0.65, 0.7, 1.0), 15)
     else:
         # late-morning sun from the front-left, cool bounce from the camera side
-        aimed("Sun", "SUN", (-9, -13, 20), 4.0, (1.0, 0.95, 0.87), 2)
+        aimed("Sun", "SUN", (-9, -13, 20), 4.0, (1.0, 0.91, 0.76), 2)
         aimed("Fill", "AREA", (26, -16, 20), 1200, (0.75, 0.85, 1.0), 15)
 
     cam_data = bpy.data.cameras.new("Cam")
@@ -1083,8 +950,8 @@ def setup_world_and_camera(samples, shot="wide", time="day"):
     cam = bpy.data.objects.new("Camera", cam_data)
     scene.collection.objects.link(cam)
     if shot == "pergola":
-        # low view in under the wisteria from beyond the right fence, showing posts,
-        # beams, slats and the feasting table
+        # low view in under the vine from the lane past the patio kerb, showing posts,
+        # beams, slats, the vine stems and the feasting table
         cam_data.lens = 22
         cam.location = (16.2, 8.4, 2.0)
         target = Vector((12.0, 10.0, 1.35))
@@ -1125,6 +992,9 @@ def main():
     shot = "wide"
     time = "day"
     res = 100
+    anim_dir = None
+    step = 1
+    backdrop = "sky"
     for i, a in enumerate(argv):
         if a == "--render":
             out = argv[i + 1]
@@ -1138,6 +1008,12 @@ def main():
             blend_out = argv[i + 1]
         elif a == "--res":
             res = int(argv[i + 1])
+        elif a == "--anim":
+            anim_dir = argv[i + 1]
+        elif a == "--step":
+            step = int(argv[i + 1])
+        elif a == "--backdrop":
+            backdrop = argv[i + 1]
 
     reset()
     M = build_materials()
@@ -1152,7 +1028,8 @@ def main():
     build_garden(M)
     if time == "day":
         apply_daylight(M)
-    setup_world_and_camera(samples, shot, time)
+    animate()
+    setup_world_and_camera(samples, shot, time, backdrop)
     bpy.context.scene.render.resolution_percentage = res
 
     if blend_out:
@@ -1160,6 +1037,11 @@ def main():
     if out:
         bpy.context.scene.render.filepath = out
         bpy.ops.render.render(write_still=True)
+    if anim_dir:
+        # step > 1 renders every Nth frame for a choppier, stop-motion look at lower cost
+        bpy.context.scene.frame_step = step
+        bpy.context.scene.render.filepath = anim_dir.rstrip("/") + "/frame_"
+        bpy.ops.render.render(animation=True)
 
 
 main()
