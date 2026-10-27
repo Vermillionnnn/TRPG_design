@@ -52,6 +52,10 @@ Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，
 
 - 只通过 `scenes/blender.sh` 调 Blender，渲染输出写到仓库内的 `out/`。不要使用 `--enable-autoexec` 或 `-y`。
 - **本地环境必须**：渲染用 5.3 Beta，命令写成行内前缀 `BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh ...`，不要用 `export BLENDER=...`。原因：5.2.3 在沙箱里会崩（见 `scenes/DEBUG.md` 问题 1）；`export` 会触发许可询问，行内前缀不会。
+- **本地环境必须**：每次 Bash 调用只写一条简单命令，否则会弹窗等 VM 许可：
+  - 不要用 `&&`、`;` 串联，不要用子 shell `( )`、后台 `&`、`wait`、管道 `|`、重定向 `>`。要做几件事就分几次调用；要并行就用 Bash 工具的 `run_in_background` 参数。
+  - 不要把含 `|`、`<<`、`!`、`;`、`>` 等字符的代码塞进 `python3 -c "..."`：先用 Write 工具写到 `out/xxx.py`（`out/` 已忽略），再运行 `python3 out/xxx.py`。
+  - 看输出用 Read 工具读文件或图片，不要靠 `| grep`、`| tail` 过滤。
 - 只加载仓库脚本生成的 `.blend`，不加载外部来源的 `.blend`；不 `git fetch` 非本人的仓库。
 - 不要尝试 `git push`；可以 `git fetch` / `git pull`，push 由 VM 在沙箱外执行。
 - 不要 `pip install`、`curl`、下载字体或模型；需要联网的步骤（如 `subset_font.py`、`make_video.sh`）请 VM 在自己的终端里跑。
@@ -63,5 +67,5 @@ Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，
 - 改了脚本参数或输出文件时，同步更新对应 README。
 - 推送或开 PR 之前检查身份（仓库是公开的，不能带出设计者的真名或私人邮箱）：
   1. `git config user.name` / `user.email` 只能是 `VM` + `132499586+Vermillionnnn@users.noreply.github.com`，或 Claude + `noreply@anthropic.com`；不是的话先用 `git config user.name/user.email` 改掉再提交。
-  2. `git log origin/main..HEAD --format='%an <%ae> | %cn <%ce>' | sort -u` 只出现上面两种身份；commit message、改动内容、PR 标题和描述里也只用 VM 或「设计者」。云端开 PR 时描述开头会自动带一行 `Requested by **名字** · project thread`，加粗的名字一律写 VM（保留上面的注释标记行和链接）。
+  2. `git log origin/main..HEAD --format='%an %ae / %cn %ce'` 只出现上面两种身份（本地按上面「单条简单命令」的要求，不要接 `| sort -u`）；commit message、改动内容、PR 标题和描述里也只用 VM 或「设计者」。云端开 PR 时描述开头会自动带一行 `Requested by **名字** · project thread`，加粗的名字一律写 VM（保留上面的注释标记行和链接）。
   3. 真名关键词不写进仓库。用它们 grep 本次的 `git log -p origin/main..HEAD`；云端从项目记忆里取，本地由 VM 自己检查。有命中就先改（未推送的 commit 用 `git commit --amend` / `git rebase` 修正），已推送到 `main` 的先告诉 VM，不要擅自改写历史。
