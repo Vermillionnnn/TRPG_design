@@ -19,8 +19,8 @@ from assets import (alembic, banner, bookshelf, candle, cauldron, chair, chest, 
                     crystal_ball, desk, fireplace, miniature, mortar, open_book, potion,
                     round_table, rug, shield, staff, summoning_circle, sword, tankard, vial_rack,
                     weapon_rack, window, wizard_hat)
-from assets.lib import (assign, box, cone, cyl, mat, palette, point_light,  # noqa: E402
-                        reset, sphere)
+from assets.lib import (assign, box, cone, cyl, keyframe, mat, palette,  # noqa: E402
+                        point_light, reset, sphere, wave)
 
 random.seed(7)
 
@@ -363,21 +363,7 @@ def build_atmosphere():
 # ---------------------------------------------------------------- animation
 
 FPS = 24
-FRAMES = 48           # 2 s loop
-
-
-def keyframe(obj, path, fn, target=None):
-    """Key `path` on every frame with value fn(t); periods divide 2 s so the clip loops."""
-    target = target or obj
-    for f in range(1, FRAMES + 1):
-        t = (f - 1) / FPS
-        setattr(target, path, fn(t))
-        target.keyframe_insert(path, frame=f)
-
-
-def wave(t, k, ph=0.0):
-    """Sine that completes k whole cycles over the 2 s clip."""
-    return math.sin(math.pi * k * t + ph)
+FRAMES = 48           # 2 s loop; lib.keyframe defaults to the same fps and length
 
 
 def animate():
