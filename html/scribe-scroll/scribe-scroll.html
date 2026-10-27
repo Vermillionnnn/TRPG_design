@@ -1199,109 +1199,171 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
   };
   let mageAlpha = 1, mageAlphaT = 1, ravenFlap = 0, ravenDir = -1;
 
+  // soft radial glows in each spell's colour, made once into the scene's defs
+  const SOFT = {};
+  [['gold', '#f2d27a'], ['fire', '#ff9a40'], ['violet', '#a98be8'], ['azure', '#9fc3e8'], ['silver', '#eef2f8'], ['red', '#d0402e']].forEach(([n, c]) => {
+    const g = el('radialGradient', { id: 'soft-' + n }, document.querySelector('#scene defs'));
+    el('stop', { offset: 0, 'stop-color': c, 'stop-opacity': .95 }, g);
+    el('stop', { offset: .45, 'stop-color': c, 'stop-opacity': .4 }, g);
+    el('stop', { offset: 1, 'stop-color': c, 'stop-opacity': 0 }, g);
+    SOFT[n] = `url(#soft-${n})`;
+  });
+  const soft = (parent, [x, y], r, name, dur, s0, s1) => part(el('circle', { r, fill: SOFT[name] }, parent), { x, y, s0: s0 ?? .3, s1: s1 ?? 1, o0: 1, o1: 0, max: dur });
+  // the whole painting takes on the spell's colour for a moment
+  const tint = (color, a, dur) => part(el('rect', { x: 30, y: 30, width: 940, height: 662, fill: color }, fxG), { x: 0, y: 0, o0: a, o1: 0, max: dur });
+  // spokes of light turning outward
+  const rays = (parent, [x, y], n, len, color, dur) => {
+    const g = el('g', { stroke: color, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, parent);
+    let d = '';
+    for (let i = 0; i < n; i++) { const a = i * 2 * Math.PI / n, c = Math.cos(a), s = Math.sin(a); d += `M${f1(c * len * .3)},${f1(s * len * .3)} L${f1(c * len)},${f1(s * len)}`; }
+    el('path', { d }, g);
+    return part(g, { x, y, s0: .4, s1: 1.25, o0: 1, o1: 0, max: dur, vr: 40 });
+  };
+  // a flawless scroll crowns the hand with a gilt circle, rays and a shower of gold
+  const flourish = p => {
+    soft(fxG, p, 90, 'gold', 1.6, .3, 1.2);
+    rays(fxG, p, 16, 80, '#f2d27a', 1.2);
+    sigil(fxG, p, 48, '#f2d27a', 1.5);
+    later(.15, () => sigil(fxG, p, 32, '#fff2c0', 1.2));
+    shock(fxG, p, 70, '#fff2c0', .7, 3);
+    burst(fxG, p, 36, ['#f2d27a', '#fff2c0', '#ffd27a'], 180, 1.7);
+  };
+
   // casting from a scroll: a talisman rises from her hand, flares and burns away into the spell
   const castFromScroll = (id, flawless) => {
-    castPose = now() + 3.2;
+    castPose = now() + 3.4;
     const h = toWorld(tip);
     SFX.paper();
-    const q = part(drawTalisman(fxG, flawless), { x: h[0], y: h[1], vx: 70, vy: -130, drag: 3, s0: 1.3, s1: 2.3, o0: 1, o1: 1, max: .75, rot: -12, vr: 30 });
+    const q = part(drawTalisman(fxG, flawless), { x: h[0], y: h[1], vx: 70, vy: -130, drag: 3, s0: 1.3, s1: 2.4, o0: 1, o1: 1, max: .75, rot: -12, vr: 30 });
     later(.72, () => {
       const o = [q.x, q.y];
-      flash(fxG, o, 28, '#fff2c0', .4);
-      burst(fxG, o, 18, ['#f2d27a', '#da7a2e', '#b4232a'], 90, .9);
-      sigil(fxG, o, 26, flawless ? '#f2d27a' : '#e0b65a', .9);
-      smoke(fxG, o, 4, '#8a8174');
+      soft(fxG, o, 50, flawless ? 'gold' : 'fire', .7);
+      flash(fxG, o, 30, '#fff2c0', .45);
+      burst(fxG, o, 22, ['#f2d27a', '#da7a2e', '#b4232a'], 110, 1);
+      sigil(fxG, o, 30, flawless ? '#f2d27a' : '#e0b65a', 1);
+      smoke(fxG, o, 5, '#8a8174');
+      if (flawless) flourish(o);
       cast(id, flawless, o);
       SFX.cast(id);
       if (flawless) SFX.flawless();
     });
   };
 
+  // every spell is drawn larger, brighter and longer when the scroll is flawless
   const cast = (id, flawless, origin) => {
+    const K = flawless ? 1.4 : 1;
     const from = origin || toWorld(tip), mid = [(from[0] + WIN[0]) / 2, Math.min(from[1], WIN[1]) - 120];
-    castPose = Math.max(castPose, now() + 2.4); ravenDir = 1; ravenFlap = 1; energy = 2;
+    castPose = Math.max(castPose, now() + 2.6); ravenDir = 1; ravenFlap = 1; energy = 2;
     if (id === 'firebolt') {
-      const head = el('g', {}, fxG);
-      el('circle', { r: 16, fill: '#ff8a40', opacity: .25 }, head);
-      el('path', { d: 'M12,0 C5,-7 -9,-6 -15,0 C-9,6 5,7 12,0Z', fill: '#ffb050' }, head);
-      el('path', { d: 'M9,0 C4,-4 -5,-3 -8,0 C-5,3 4,4 9,0Z', fill: '#fff2c0' }, head);
+      soft(fxG, from, 46, 'fire', .6);
+      // the moving group takes translate/rotate from shoot(), so the size lives on an inner group
+      const head = el('g', {}, fxG), hs = el('g', { transform: `scale(${K})` }, head);
+      el('circle', { r: 26, fill: SOFT.fire }, hs);
+      el('path', { d: 'M14,0 C6,-9 -11,-8 -19,0 C-11,8 6,9 14,0Z', fill: '#e8602a' }, hs);
+      el('path', { d: 'M12,0 C5,-6 -8,-5 -13,0 C-8,5 5,6 12,0Z', fill: '#ffb050' }, hs);
+      el('path', { d: 'M9,0 C4,-3 -4,-3 -7,0 C-4,3 4,3 9,0Z', fill: '#fff2c0' }, hs);
       shoot(head, from, mid, WIN, .7, p => {
-        flash(fxOut, p, 60, '#ffbf73', .45);
-        shock(fxOut, p, 44, '#ffd27a', .45, 3);
-        burst(fxOut, p, 24, ['#ecc75e', '#da7a2e', '#b8432a'], 140, 1.1);
-        smoke(fxOut, p, 6, '#6d6458');
-      }, trail(['#ffd27a', '#da7a2e', '#b8432a'], 4, .45), true);
+        soft(fxOut, p, 110 * K, 'fire', 1.6, .2, 1.1);
+        flash(fxOut, p, 70 * K, '#ffd27a', .5);
+        shock(fxOut, p, 56 * K, '#ffd27a', .5, 4);
+        later(.1, () => shock(fxOut, p, 84 * K, '#e8602a', .7, 2.5));
+        burst(fxOut, p, 40, ['#ecc75e', '#da7a2e', '#b8432a', '#fff2c0'], 170, 1.4);
+        smoke(fxOut, p, 10, '#5a4e46');
+        tint('#ff8a40', .12, .8);
+      }, trail(['#ffd27a', '#da7a2e', '#b8432a'], 5.5 * K, .65), true);
     }
     if (id === 'missile') {
+      soft(fxG, from, 50, 'violet', .7);
+      shock(fxG, from, 34, '#cbbcff', .5, 2);
       [0, 1, 2].forEach(k => later(k * .14, () => {
-        const to = [WIN[0] + (k - 1) * 28, WIN[1] - 24 + k * 16], c = [mid[0] + (k - 1) * 110, mid[1] + (k - 1) * 90];
-        const dart = el('g', {}, fxG);
-        el('circle', { r: 11, fill: '#9b7fd9', opacity: .3 }, dart);
-        el('path', { d: 'M11,0 L-8,-4 L-4,0 L-8,4Z', fill: '#f6f0ff' }, dart);
+        const to = [WIN[0] + (k - 1) * 30, WIN[1] - 26 + k * 18], c = [mid[0] + (k - 1) * 120, mid[1] + (k - 1) * 100];
+        const dart = el('g', {}, fxG), ds = el('g', { transform: `scale(${K})` }, dart);
+        el('circle', { r: 18, fill: SOFT.violet }, ds);
+        el('path', { d: 'M14,0 L-10,-5 L-5,0 L-10,5Z', fill: '#7a5fc4' }, ds);
+        el('path', { d: 'M12,0 L-7,-3 L-3,0 L-7,3Z', fill: '#f6f0ff' }, ds);
         shoot(dart, from, c, to, .62, p => {
-          flash(fxOut, p, 30, '#cbbcff', .4);
-          shock(fxOut, p, 24, '#e4dcff', .4, 2);
-          burst(fxOut, p, 12, ['#e4dcff', '#9b7fd9'], 100, .8);
-        }, trail(['#e4dcff', '#b9a6f0', '#9b7fd9'], 3, .5), true);
+          soft(fxOut, p, 60 * K, 'violet', .9);
+          flash(fxOut, p, 34 * K, '#e4dcff', .4);
+          shock(fxOut, p, 34 * K, '#cbbcff', .5, 3);
+          burst(fxOut, p, 18, ['#e4dcff', '#9b7fd9', '#ffffff'], 130, 1);
+          if (k === 2) tint('#7a5fc4', .1, .7);
+        }, trail(['#e4dcff', '#b9a6f0', '#7a5fc4'], 4.5 * K, .7), true);
       }));
     }
     if (id === 'shield') {
-      const c = toWorld([20, -150]);
-      const hex = [...Array(6)].map((_, k) => { const a = Math.PI / 6 + k * Math.PI / 3; return [Math.cos(a) * 120, Math.sin(a) * 120]; });
+      const c = toWorld([20, -150]), R = 130 * K;
+      const hexAt = r => [...Array(6)].map((_, k) => { const a = Math.PI / 6 + k * Math.PI / 3; return [Math.cos(a) * r, Math.sin(a) * r]; });
+      const hex = hexAt(R), inner = hexAt(R * .86);
       const g = el('g', {}, fxG);
-      el('path', { d: 'M' + hex.map(P).join(' L') + 'Z', fill: 'rgba(159,195,232,.18)', stroke: '#bcd6f0', 'stroke-width': 3, 'stroke-linejoin': 'round' }, g);
-      el('path', { d: hex.map(p => `M0,0 L${P(p)}`).join(' '), stroke: '#d8e8f8', 'stroke-width': 1, opacity: .45 }, g);
-      el('path', { d: 'M' + hex.map(p => P([p[0] * .86, p[1] * .86])).join(' L') + 'Z', fill: 'none', stroke: '#e0b65a', 'stroke-width': 1.4, 'stroke-dasharray': '6 5' }, g);
-      hex.forEach(p => el('circle', { cx: f1(p[0]), cy: f1(p[1]), r: 4, fill: '#f2d27a' }, g));
-      part(g, { x: c[0], y: c[1], s0: .4, s1: 1.2, o0: 1, o1: 0, max: 2.2, vr: 10 });
-      flash(fxG, c, 90, '#d8e8f8', .5);
-      [0, .18, .36].forEach(d => later(d, () => shock(fxG, c, 150, '#bcd6f0', .9, 2.4)));
-      burst(fxG, c, 18, ['#d8e8f8', '#f2d27a'], 120, 1.2);
+      el('circle', { r: R * 1.1, fill: SOFT.azure, opacity: .55 }, g);
+      el('path', { d: 'M' + hex.map(P).join(' L') + 'Z', fill: 'rgba(120,170,225,.28)', stroke: '#d8e8f8', 'stroke-width': 4.5, 'stroke-linejoin': 'round' }, g);
+      el('path', { d: hex.map(p => `M0,0 L${P(p)}`).join(' '), stroke: '#eaf3fc', 'stroke-width': 1.4, opacity: .6 }, g);
+      el('path', { d: 'M' + inner.map(P).join(' L') + 'Z', fill: 'none', stroke: '#f2d27a', 'stroke-width': 2, 'stroke-dasharray': '7 5' }, g);
+      hex.forEach(p => { el('circle', { cx: f1(p[0]), cy: f1(p[1]), r: 9, fill: SOFT.gold }, g); el('circle', { cx: f1(p[0]), cy: f1(p[1]), r: 4.5, fill: '#fff2c0' }, g); });
+      part(g, { x: c[0], y: c[1], s0: .35, s1: 1.15, o0: 1, o1: 0, max: 2.8 * K, vr: 10 });
+      soft(fxG, c, 160 * K, 'azure', 1.4, .4, 1.1);
+      flash(fxG, c, 100 * K, '#eaf3fc', .5);
+      [0, .18, .36, .54].forEach(d => later(d, () => shock(fxG, c, 165 * K, '#bcd6f0', 1, 3)));
+      burst(fxG, c, 30, ['#eaf3fc', '#9fc3e8', '#f2d27a'], 150, 1.5);
+      tint('#4f7fb8', .14, 1.2);
     }
     if (id === 'misty') {
       const puff = (cx, cy) => {
-        for (let i = 0; i < (RM ? 3 : 16); i++) part(el('circle', { r: 12 + Math.random() * 12, fill: '#e8ecf2' }, fxG), { x: cx + (Math.random() - .5) * 120, y: cy + (Math.random() - .5) * 220, vy: -14, s0: .4, s1: 1.8, o0: .75, o1: 0, max: 1.3 + Math.random() * .5 });
-        burst(fxG, [cx, cy], 14, ['#ffffff', '#cfd8e8'], 110, 1.2);
+        for (let i = 0; i < (RM ? 3 : 24); i++) part(el('circle', { r: 14 + Math.random() * 16, fill: '#e8ecf2' }, fxG), { x: cx + (Math.random() - .5) * 140 * K, y: cy + (Math.random() - .5) * 240, vy: -16, s0: .4, s1: 2, o0: .85, o1: 0, max: 1.6 + Math.random() * .6 });
+        soft(fxG, [cx, cy], 120 * K, 'silver', 1.4, .3, 1.2);
+        burst(fxG, [cx, cy], 26, ['#ffffff', '#cfd8e8', '#eef2f8'], 140, 1.5);
       };
-      puff(MAGE[0] + 10, MAGE[1] - 120);
+      const here = [MAGE[0] + 10, MAGE[1] - 120];
+      puff(here[0], here[1]);
+      tint('#dfe6f0', .18, 1.6);
       later(.15, () => { mageAlphaT = 0; });
-      later(.6, () => puff(WIN[0], WIN[1] + 40));
-      later(1.15, () => { mageAlphaT = 1; puff(MAGE[0] + 10, MAGE[1] - 120); });
+      // a silver streak runs from where she stood to where she reappears for a heartbeat
+      later(.3, () => shoot(glowDot(fxG, 5, '#ffffff', '#cfd8e8'), here, [(here[0] + WIN[0]) / 2, here[1] - 160], [WIN[0], WIN[1] + 40], .35, p => puff(p[0], p[1]), trail(['#ffffff', '#cfd8e8'], 6, .7)));
+      later(.9, () => shoot(glowDot(fxG, 5, '#ffffff', '#cfd8e8'), [WIN[0], WIN[1] + 40], [(here[0] + WIN[0]) / 2, here[1] - 120], here, .35, null, trail(['#ffffff', '#cfd8e8'], 6, .7)));
+      later(1.25, () => { mageAlphaT = 1; puff(here[0], here[1]); });
     }
     if (id === 'fireball') {
-      shoot(glowDot(fxG, 4, '#fff2c0', '#ff8a40'), from, mid, WIN, .9, p => {
-        part(el('circle', { r: 150, fill: 'url(#boomGrad)' }, fxOut), { x: p[0], y: p[1], s0: .1, s1: 1.2, o0: 1, o1: 0, max: 1.7 });
-        shock(fxOut, p, 120, '#fff2c0', .6, 5);
-        later(.12, () => shock(fxOut, p, 170, '#ff9a52', .9, 3));
-        burst(fxOut, p, 50, ['#ecc75e', '#da7a2e', '#b8432a', '#fff2c0'], 220, 1.5);
-        later(.4, () => smoke(fxOut, p, 10, '#5a4e46'));
-        part(el('rect', { x: 30, y: 30, width: 940, height: 662, fill: '#ff9a52' }, fxG), { x: 0, y: 0, o0: .25, o1: 0, max: 1 });
-      }, trail(['#ecc75e', '#fff2c0', '#da7a2e'], 3.5, .5));
+      shoot(glowDot(fxG, 5 * K, '#fff2c0', '#ff8a40'), from, mid, WIN, .9, p => {
+        part(el('circle', { r: 200 * K, fill: 'url(#boomGrad)' }, fxOut), { x: p[0], y: p[1], s0: .1, s1: 1.2, o0: 1, o1: 0, max: 2 });
+        soft(fxOut, p, 170 * K, 'fire', 2.6, .5, 1.1);
+        shock(fxOut, p, 130 * K, '#fff2c0', .6, 6);
+        later(.12, () => shock(fxOut, p, 190 * K, '#ff9a52', .9, 4));
+        later(.26, () => shock(fxOut, p, 240 * K, '#b8432a', 1.1, 2.5));
+        burst(fxOut, p, 70, ['#ecc75e', '#da7a2e', '#b8432a', '#fff2c0'], 260, 1.8);
+        later(.4, () => smoke(fxOut, p, 16, '#4a3f38'));
+        tint('#ff8a40', .34, 1.5);
+        energy = 3;
+      }, trail(['#ecc75e', '#fff2c0', '#da7a2e'], 4.5 * K, .6));
     }
     if (id === 'counter') {
       // a hostile sigil gathers outside; the gilt ring breaks it apart
-      const sig = el('g', { fill: 'none', stroke: '#c0392b', 'stroke-width': 2.6 }, fxOut);
-      el('circle', { r: 46, fill: '#c0392b', opacity: .14, stroke: 'none' }, sig);
-      el('circle', { r: 32 }, sig); el('circle', { r: 20, 'stroke-width': 1.4 }, sig);
-      el('path', { d: 'M0,-30 L8,-8 L30,-10 L12,4 L18,28 L0,14 L-18,28 L-12,4 L-30,-10 L-8,-8Z', 'stroke-width': 1.8 }, sig);
-      part(sig, { x: WIN[0], y: WIN[1], o0: .95, o1: .95, max: .95, vr: -60, s0: .5, s1: 1.1 });
+      const sig = el('g', { fill: 'none', stroke: '#e0402e', 'stroke-width': 3 }, fxOut);
+      el('circle', { r: 70, fill: SOFT.red, stroke: 'none' }, sig);
+      el('circle', { r: 38 }, sig); el('circle', { r: 24, 'stroke-width': 1.6 }, sig);
+      el('path', { d: 'M0,-36 L10,-10 L36,-12 L14,5 L22,34 L0,17 L-22,34 L-14,5 L-36,-12 L-10,-10Z', 'stroke-width': 2.2 }, sig);
+      part(sig, { x: WIN[0], y: WIN[1], o0: 1, o1: 1, max: .95, vr: -70, s0: .4, s1: 1.15 });
+      tint('#a0281e', .1, .9);
       later(.15, () => {
-        const ring = el('g', { fill: 'none', stroke: '#e0b65a' }, fxG);
-        el('circle', { r: 11, 'stroke-width': 3 }, ring);
-        el('circle', { r: 6, 'stroke-width': 1.2 }, ring);
+        const ring = el('g', { fill: 'none', stroke: '#f2d27a' }, fxG), rs = el('g', { transform: `scale(${K})` }, ring);
+        el('circle', { r: 22, fill: SOFT.gold, stroke: 'none' }, rs);
+        el('circle', { r: 12, 'stroke-width': 3.4 }, rs);
+        el('circle', { r: 6, 'stroke-width': 1.4 }, rs);
         shoot(ring, from, mid, WIN, .8, p => {
-          for (let i = 0; i < (RM ? 3 : 16); i++) {
-            const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 140;
-            part(el('path', { d: 'M0,-5 L3,3 L-3,2Z', fill: '#c0392b' }, fxOut), { x: p[0], y: p[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 120, drag: 1, max: 1.1, vr: 300, rot: Math.random() * 360 });
+          for (let i = 0; i < (RM ? 3 : 24); i++) {
+            const a = Math.random() * Math.PI * 2, v = 90 + Math.random() * 170;
+            part(el('path', { d: 'M0,-6 L4,4 L-4,2Z', fill: Math.random() < .7 ? '#e0402e' : '#7a1a14' }, fxOut), { x: p[0], y: p[1], vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 140, drag: 1, max: 1.3, vr: 300, rot: Math.random() * 360 });
           }
-          flash(fxOut, p, 40, '#fff6dc', .35);
-          shock(fxOut, p, 60, '#f2d27a', .7, 3);
-          sigil(fxOut, p, 40, '#f2d27a', 1);
-          burst(fxOut, p, 16, ['#f2d27a', '#fff2c0'], 120, 1);
-        }, trail(['#f2d27a', '#e0b65a'], 3, .4));
+          soft(fxOut, p, 120 * K, 'gold', 1.4, .3, 1.1);
+          flash(fxOut, p, 60 * K, '#fff6dc', .4);
+          shock(fxOut, p, 70 * K, '#f2d27a', .7, 4);
+          later(.12, () => shock(fxOut, p, 110 * K, '#fff6dc', .9, 2));
+          sigil(fxOut, p, 50 * K, '#f2d27a', 1.3);
+          rays(fxOut, p, 12, 90 * K, '#f2d27a', 1);
+          burst(fxOut, p, 24, ['#f2d27a', '#fff2c0'], 150, 1.3);
+          tint('#f2d27a', .14, .9);
+        }, trail(['#f2d27a', '#e0b65a', '#fff2c0'], 4.5 * K, .55));
       });
     }
-    if (flawless) later(.3, () => burst(fxG, toWorld([8, -270]), 26, ['#f2d27a', '#fff2c0'], 140, 1.6));
   };
   const fizzle = () => {
     castPose = now() + 1.4; ravenFlap = .6;
