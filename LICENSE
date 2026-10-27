@@ -12,7 +12,11 @@ Copyright (c) 2026 VM. All rights reserved.
 
 - D&D 相关设定：《龙与地下城》、深水城（Waterdeep）、黑杖（Blackstaff）等名称和设定归 Wizards of the Coast 所有。本仓库是非官方的粉丝内容，与 WotC 无关，也未获其认可。
 - 角色设计：作品中的角色如果是其他玩家或画师创作的原创角色，角色设计归原作者所有。生图时用到的参考图不在本仓库中。
-- 字体：`html/bard-lute/` 里嵌入的 Noto Serif SC 子集按 SIL Open Font License 1.1 授权（https://openfontlicense.org/）。
+- 字体：网页里用到的字体都不属于设计者，仍按各自的 SIL Open Font License 1.1 授权（https://openfontlicense.org/），不受上面「保留所有权利」的限制：
+  - Noto Serif SC（Google）：以子集形式嵌入 `html/bard-lute/` 和 `html/scribe-scroll/`。
+  - Fondamento（Astigmatic）：以子集形式嵌入 `html/scribe-scroll/`，用于卷轴上的英文咒文。
+  - Uncial Antiqua（Astigmatic）：`html/bard-lute/` 的标题与题记、`html/scribe-scroll/` 的湿壁画题记，是由它转成的文字轮廓。
+  - ZCOOL XiaoWei（站酷）：`html/bard-lute/` 的中文标题，是由它转成的文字轮廓。
 
 ## 关于 AI 生成内容
 
@@ -38,8 +42,19 @@ released under an open source license; all rights are reserved.
 - Character designs: original characters created by other players or artists
   remain theirs. Reference images used for image generation are not in this
   repository.
-- Fonts: the Noto Serif SC subset embedded in html/bard-lute/ is licensed under
-  the SIL Open Font License 1.1 (https://openfontlicense.org/).
+- Fonts: none of the fonts used in the web pages belong to the designer. Each
+  remains under its own SIL Open Font License 1.1
+  (https://openfontlicense.org/) and is not covered by the reservation of
+  rights above:
+  - Noto Serif SC (Google), embedded as a subset in html/bard-lute/ and
+    html/scribe-scroll/.
+  - Fondamento (Astigmatic), embedded as a subset in html/scribe-scroll/ for
+    the incantations on the scroll.
+  - Uncial Antiqua (Astigmatic), converted to letter outlines for the headings
+    and titulus of html/bard-lute/ and the fresco titulus of
+    html/scribe-scroll/.
+  - ZCOOL XiaoWei (ZCOOL), converted to letter outlines for the Chinese
+    headings of html/bard-lute/.
 
 ## About AI-generated content
 
