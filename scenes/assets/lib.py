@@ -103,12 +103,13 @@ def sphere(name, r, loc, material, scale=(1, 1, 1), segs=16):
     return assign(o, material)
 
 
-def cone(name, r1, r2, depth, loc, material, rot=(0, 0, 0), verts=16):
+def cone(name, r1, r2, depth, loc, material, rot=(0, 0, 0), verts=16, smooth=True):
     bpy.ops.mesh.primitive_cone_add(radius1=r1, radius2=r2, depth=depth,
                                     location=loc, rotation=rot, vertices=verts)
     o = bpy.context.object
     o.name = name
-    bpy.ops.object.shade_smooth()
+    if smooth:
+        bpy.ops.object.shade_smooth()
     return assign(o, material)
 
 
@@ -245,6 +246,51 @@ def arch_slab(name, w, h, thick, material, loc=(0, 0, 0), rot=(0, 0, 0), segs=24
     return o
 
 
+ICO_V = [(-1, 1.618, 0), (1, 1.618, 0), (-1, -1.618, 0), (1, -1.618, 0), (0, -1, 1.618), (0, 1, 1.618),
+         (0, -1, -1.618), (0, 1, -1.618), (1.618, 0, -1), (1.618, 0, 1), (-1.618, 0, -1), (-1.618, 0, 1)]
+ICO_F = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2),
+         (10, 7, 6), (7, 1, 8), (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5),
+         (2, 4, 11), (6, 2, 10), (8, 6, 7), (9, 8, 1)]
+
+
+def blob(name, r, loc, material, squash=1.0, strength=0.3, noise=0.3, subdiv=3):
+    """Lumpy foliage: an icosphere pushed around by a cloud texture in world space
+    (so the lumps depend on where the blob ends up, not on its parent)."""
+    key = "LeafNoise" if noise == 0.3 else f"LeafNoise{noise:g}"
+    tex = bpy.data.textures.get(key) or bpy.data.textures.new(key, "CLOUDS")
+    tex.noise_scale = noise
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=subdiv, radius=r, location=loc)
+    o = bpy.context.object
+    o.name = name
+    o.scale.z = squash
+    d = o.modifiers.new("disp", "DISPLACE")
+    d.texture = tex
+    d.strength = strength
+    d.texture_coords = "GLOBAL"
+    bpy.ops.object.shade_smooth()
+    return assign(o, material)
+
+
+def curve(name, pts, r, material, taper=1.0):
+    """Smooth NURBS tube through pts; the radius shrinks linearly to r * taper at the end."""
+    cu = bpy.data.curves.new(name, "CURVE")
+    cu.dimensions = "3D"
+    cu.bevel_depth = r
+    cu.bevel_resolution = 2
+    cu.use_fill_caps = True
+    sp = cu.splines.new("NURBS")
+    sp.points.add(len(pts) - 1)
+    for i, (p, c) in enumerate(zip(sp.points, pts)):
+        p.co = (*c, 1.0)
+        p.radius = 1.0 + (taper - 1.0) * i / max(1, len(pts) - 1)
+    sp.order_u = min(4, len(pts))
+    sp.use_endpoint_u = True
+    sp.resolution_u = 8
+    o = bpy.data.objects.new(name, cu)
+    bpy.context.collection.objects.link(o)
+    return assign(o, material)
+
+
 class Batch:
     """Collects many small boxes / cylinders into one mesh per material (books,
     planks, stones, scrolls); far faster than one object per piece."""
@@ -280,13 +326,25 @@ class Batch:
         faces.append(tuple(base + 2 * i for i in range(segs)))
         faces.append(tuple(base + 2 * i + 1 for i in reversed(range(segs))))
 
-    def build(self, name, bev=0.0):
+    def ball(self, material, r, loc, scale=(1, 1, 1), rz=0.0, rx=0.0, ry=0.0):
+        """Icosahedron of radius r (12 verts), optionally squashed and turned."""
+        rot = Euler((rx, ry, rz)).to_matrix()
+        verts, faces = self._slot(material)
+        base = len(verts)
+        for v in ICO_V:
+            p = Vector((v[0] * scale[0], v[1] * scale[1], v[2] * scale[2])) * (r / 1.902)
+            verts.append(tuple(rot @ p + Vector(loc)))
+        faces += [tuple(base + i for i in f) for f in ICO_F]
+
+    def build(self, name, bev=0.0, smooth=False):
         """One object per material, named <name>_<material>; returns the objects."""
         out = []
         for key, (material, verts, faces) in self.parts.items():
             me = bpy.data.meshes.new(f"{name}_{key}")
             me.from_pydata(verts, [], faces)
             me.validate()
+            if smooth:
+                me.shade_smooth()
             o = bpy.data.objects.new(f"{name}_{key}", me)
             bpy.context.collection.objects.link(o)
             assign(o, material)
@@ -377,6 +435,36 @@ def palette():
     M["clear_glass"] = glass_mat("ClearGlass", (0.9, 0.95, 1.0))
     M["soot"] = mat("Soot", (0.03, 0.025, 0.02), 1)
     M["bone"] = mat("Bone", (0.85, 0.8, 0.68), 0.6)
+    # added with the Shadow base (outdoor props and plants)
+    M["log"] = noisy_mat("Log", (0.26, 0.17, 0.09), (0.36, 0.25, 0.14), 4, 0.8, stretch=(1, 1, 6))
+    M["flag"] = noisy_mat("Flagstone", (0.46, 0.44, 0.40), (0.56, 0.54, 0.50), 5, 0.9)
+    M["straw"] = noisy_mat("Straw", (0.70, 0.55, 0.22), (0.82, 0.67, 0.32), 9, 0.95, stretch=(1, 1, 8))
+    M["burlap"] = noisy_mat("Burlap", (0.55, 0.43, 0.27), (0.63, 0.51, 0.33), 30, 1.0)
+    M["rope"] = mat("Rope", (0.55, 0.42, 0.25), 0.9)
+    M["red_paint"] = mat("RedPaint", (0.6, 0.05, 0.05), 0.7)
+    M["white_paint"] = mat("WhitePaint", (0.85, 0.82, 0.75), 0.8)
+    M["silver"] = mat("Silver", (0.85, 0.87, 0.92), 0.2, 1.0)
+    M["void"] = mat("Void", (0.0, 0.0, 0.0), 1.0)
+    M["shadow_trim"] = mat("ShadowTrim", (0.10, 0.16, 0.30), 0.8)
+    M["globe"] = mat("Driftglobe", (1.0, 0.9, 0.7), 0.2, emit=(1.0, 0.85, 0.6), emit_strength=18)
+    M["leaf"] = noisy_mat("Leaf", (0.12, 0.30, 0.07), (0.19, 0.40, 0.11), 4, 0.9)
+    M["leaf_violet"] = noisy_mat("LeafViolet", (0.30, 0.09, 0.34), (0.42, 0.15, 0.44), 9, 0.85)
+    M["pine"] = noisy_mat("Pine", (0.05, 0.20, 0.11), (0.08, 0.26, 0.14), 4, 0.9)
+    M["hedge"] = noisy_mat("Hedge", (0.08, 0.25, 0.06), (0.13, 0.33, 0.09), 5, 0.9)
+    M["tuft"] = mat("GrassTuft", (0.20, 0.42, 0.09), 0.9)
+    M["soil"] = noisy_mat("Soil", (0.17, 0.10, 0.05), (0.23, 0.14, 0.08), 12, 1.0)
+    M["wisteria"] = mat("Wisteria", (0.42, 0.22, 0.75), 0.7)
+    M["wisteria2"] = mat("Wisteria2", (0.62, 0.45, 0.88), 0.7)
+    M["bloom_red"] = mat("BloomRed", (0.75, 0.08, 0.12), 0.6)
+    M["bloom_yellow"] = mat("BloomYellow", (0.95, 0.75, 0.15), 0.6)
+    M["bloom_white"] = mat("BloomWhite", (0.9, 0.88, 0.82), 0.6)
+    M["bloom_blue"] = mat("BloomBlue", (0.2, 0.35, 0.85), 0.6)
+    M["bloom_pink"] = mat("BloomPink", (0.92, 0.45, 0.52), 0.6)
+    M["bloom_orange"] = mat("BloomOrange", (0.95, 0.42, 0.10), 0.6)
+    M["leaf_light"] = noisy_mat("LeafLight", (0.22, 0.42, 0.10), (0.32, 0.52, 0.14), 4, 0.85)
+    M["grape_green"] = mat("GrapeGreen", (0.52, 0.62, 0.18), 0.35)
+    M["grape_red"] = mat("GrapeRed", (0.32, 0.05, 0.09), 0.3)
+    M["apple"] = mat("Apple", (0.78, 0.08, 0.06), 0.4)
     return M
 
 
