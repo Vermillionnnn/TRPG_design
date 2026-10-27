@@ -2,7 +2,11 @@
 
 Every helper creates objects in the active collection and returns them.
 """
+import math
+
+import bmesh
 import bpy
+from mathutils import Euler, Vector
 
 
 def reset():
@@ -25,7 +29,7 @@ def mat(name, color, rough=0.6, metal=0.0, emit=None, emit_strength=0.0):
     return m
 
 
-def noisy_mat(name, c1, c2, scale=8.0, rough=0.7, stretch=(1, 1, 1)):
+def noisy_mat(name, c1, c2, scale=8.0, rough=0.7, stretch=(1, 1, 1), bump=0.25):
     """Two-tone material driven by noise; gives wood/stone some variation."""
     m = bpy.data.materials.get(name)
     if m:
@@ -48,10 +52,10 @@ def noisy_mat(name, c1, c2, scale=8.0, rough=0.7, stretch=(1, 1, 1)):
     nt.links.new(mp.outputs["Vector"], nz.inputs["Vector"])
     nt.links.new(nz.outputs["Fac"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bsdf.inputs["Base Color"])
-    bump = nt.nodes.new("ShaderNodeBump")
-    bump.inputs["Strength"].default_value = 0.25
-    nt.links.new(nz.outputs["Fac"], bump.inputs["Height"])
-    nt.links.new(bump.outputs["Normal"], bsdf.inputs["Normal"])
+    bp = nt.nodes.new("ShaderNodeBump")
+    bp.inputs["Strength"].default_value = bump
+    nt.links.new(nz.outputs["Fac"], bp.inputs["Height"])
+    nt.links.new(bp.outputs["Normal"], bsdf.inputs["Normal"])
     return m
 
 
@@ -138,6 +142,177 @@ def point_light(name, loc, energy, color, radius=0.05):
     return o
 
 
+def polar(r, a, z=0.0):
+    return (r * math.cos(a), r * math.sin(a), z)
+
+
+def smooth_by_angle(obj, degrees=40):
+    bpy.context.view_layer.objects.active = obj
+    for s in bpy.context.selected_objects:
+        s.select_set(False)
+    obj.select_set(True)
+    bpy.ops.object.shade_smooth_by_angle(angle=math.radians(degrees))
+    return obj
+
+
+# ---------------------------------------------------------------- generated meshes
+
+def mesh_obj(name, verts, faces, material, loc=(0, 0, 0), rot=(0, 0, 0), smooth_angle=35):
+    """Object from raw verts/faces; duplicate verts are merged and normals made consistent."""
+    me = bpy.data.meshes.new(name)
+    me.from_pydata(verts, [], faces)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    o = bpy.data.objects.new(name, me)
+    o.location = loc
+    o.rotation_euler = rot
+    bpy.context.collection.objects.link(o)
+    if smooth_angle:
+        smooth_by_angle(o, smooth_angle)
+    return assign(o, material)
+
+
+def shell(name, r_out, r_in, z0, z1, material, segs=128, arc=None, loc=(0, 0, 0),
+          r_out_top=None, r_in_top=None, rot=(0, 0, 0)):
+    """Closed tube (or solid disc when r_in=0) around local Z, optionally only
+    over the angular range `arc` = (a0, a1) with capped ends. Tops may taper."""
+    ro1 = r_out if r_out_top is None else r_out_top
+    ri1 = r_in if r_in_top is None else r_in_top
+    if arc:
+        a0, a1 = arc
+        n = max(2, int(segs * (a1 - a0) / (2 * math.pi)))
+        angles = [a0 + (a1 - a0) * i / n for i in range(n + 1)]
+    else:
+        angles = [2 * math.pi * i / segs for i in range(segs)]
+    verts = []
+    for a in angles:
+        c, s = math.cos(a), math.sin(a)
+        verts += [(r_out * c, r_out * s, z0), (ro1 * c, ro1 * s, z1),
+                  (ri1 * c, ri1 * s, z1), (r_in * c, r_in * s, z0)]
+    faces = []
+    n = len(angles)
+    for i in range(n if not arc else n - 1):
+        a, b = 4 * i, 4 * ((i + 1) % n)
+        faces += [(a, b, b + 1, a + 1), (a + 1, b + 1, b + 2, a + 2),
+                  (a + 2, b + 2, b + 3, a + 3), (a + 3, b + 3, b, a)]
+    if arc:
+        last = 4 * (n - 1)
+        faces += [(3, 2, 1, 0), (last, last + 1, last + 2, last + 3)]
+    return mesh_obj(name, verts, faces, material, loc, rot)
+
+
+def lathe(name, profile, loc, material, segs=24, rot=(0, 0, 0)):
+    """Turned part (leg, finial, candlestick) from a (radius, z) profile listed
+    bottom to top; radius 0 at either end closes it."""
+    verts, faces = [], []
+    n = len(profile)
+    for i in range(segs):
+        a = 2 * math.pi * i / segs
+        verts += [(r * math.cos(a), r * math.sin(a), z) for r, z in profile]
+    for i in range(segs):
+        j = (i + 1) % segs
+        for k in range(n - 1):
+            faces.append((i * n + k, j * n + k, j * n + k + 1, i * n + k + 1))
+    if profile[0][0] > 0:
+        faces.append(tuple(i * n for i in reversed(range(segs))))
+    if profile[-1][0] > 0:
+        faces.append(tuple(i * n + n - 1 for i in range(segs)))
+    return mesh_obj(name, verts, faces, material, loc, rot, smooth_angle=50)
+
+
+def arch_outline(w, h, segs=24):
+    """(x, z) outline of a round-headed opening: straight sides h, semicircular head."""
+    pts = [(-w / 2, 0.0), (w / 2, 0.0)]
+    pts += [(w / 2 * math.cos(math.pi * k / segs), h + w / 2 * math.sin(math.pi * k / segs))
+            for k in range(segs + 1)]
+    return pts
+
+
+def arch_slab(name, w, h, thick, material, loc=(0, 0, 0), rot=(0, 0, 0), segs=24, bev=0.006):
+    """Round-headed slab (door leaf, pane, cutter) in its local XZ plane, thickness along Y."""
+    outline = arch_outline(w, h, segs)
+    verts = [(px, dy, pz) for dy in (-thick / 2, thick / 2) for px, pz in outline]
+    n = len(outline)
+    faces = [tuple(range(n)), tuple(range(2 * n - 1, n - 1, -1))]
+    faces += [(k, (k + 1) % n, n + (k + 1) % n, n + k) for k in range(n)]
+    o = mesh_obj(name, verts, faces, material, loc, rot, smooth_angle=0)
+    if bev:
+        bevel(o, bev, 2)
+    return o
+
+
+class Batch:
+    """Collects many small boxes / cylinders into one mesh per material (books,
+    planks, stones, scrolls); far faster than one object per piece."""
+
+    def __init__(self):
+        self.parts = {}
+
+    def _slot(self, material):
+        return self.parts.setdefault(material.name, (material, [], []))[1:]
+
+    def box(self, material, size, loc, rz=0.0, rx=0.0, ry=0.0):
+        sx, sy, sz = (s / 2 for s in size)
+        corners = [Vector((x, y, z)) for x in (-sx, sx) for y in (-sy, sy) for z in (-sz, sz)]
+        rot = Euler((rx, ry, rz)).to_matrix()
+        verts, faces = self._slot(material)
+        base = len(verts)
+        verts += [tuple(rot @ c + Vector(loc)) for c in corners]
+        for f in ((0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6),
+                  (0, 2, 6, 4), (1, 5, 7, 3)):
+            faces.append(tuple(base + i for i in f))
+
+    def cyl(self, material, r, length, loc, rz=0.0, rx=0.0, ry=0.0, segs=10):
+        rot = Euler((rx, ry, rz)).to_matrix()
+        verts, faces = self._slot(material)
+        base = len(verts)
+        for i in range(segs):
+            a = 2 * math.pi * i / segs
+            for z in (-length / 2, length / 2):
+                verts.append(tuple(rot @ Vector((r * math.cos(a), r * math.sin(a), z)) + Vector(loc)))
+        for i in range(segs):
+            j = (i + 1) % segs
+            faces.append((base + 2 * i, base + 2 * j, base + 2 * j + 1, base + 2 * i + 1))
+        faces.append(tuple(base + 2 * i for i in range(segs)))
+        faces.append(tuple(base + 2 * i + 1 for i in reversed(range(segs))))
+
+    def build(self, name, bev=0.0):
+        """One object per material, named <name>_<material>; returns the objects."""
+        out = []
+        for key, (material, verts, faces) in self.parts.items():
+            me = bpy.data.meshes.new(f"{name}_{key}")
+            me.from_pydata(verts, [], faces)
+            me.validate()
+            o = bpy.data.objects.new(f"{name}_{key}", me)
+            bpy.context.collection.objects.link(o)
+            assign(o, material)
+            if bev:
+                bevel(o, bev, 2).modifiers["bevel"].limit_method = "ANGLE"
+            out.append(o)
+        self.parts = {}
+        return out
+
+
+# ---------------------------------------------------------------- animation
+
+def keyframe(obj, path, fn, target=None, fps=24, frames=48):
+    """Key `path` on every frame with value fn(t); periods that divide the clip make it loop."""
+    target = target or obj
+    for f in range(1, frames + 1):
+        t = (f - 1) / fps
+        setattr(target, path, fn(t))
+        target.keyframe_insert(path, frame=f)
+
+
+def wave(t, k, ph=0.0):
+    """Sine that completes k whole cycles over a 2 s clip."""
+    return math.sin(math.pi * k * t + ph)
+
+
 # ---------------------------------------------------------------- materials
 
 def palette():
@@ -186,7 +361,38 @@ def palette():
     M["bookcols"] = [mat(f"Book{i}", c, 0.8) for i, c in enumerate([
         (0.4, 0.05, 0.05), (0.05, 0.2, 0.08), (0.08, 0.1, 0.35),
         (0.35, 0.25, 0.08), (0.25, 0.08, 0.25), (0.1, 0.08, 0.05)])]
+    # added with the Blackstaff office
+    M["blackstone"] = noisy_mat("BlackStone", (0.025, 0.024, 0.03), (0.09, 0.085, 0.09), 6, 0.85,
+                                bump=0.4)
+    M["smoked_stone"] = noisy_mat("SmokedStone", (0.045, 0.042, 0.04), (0.13, 0.12, 0.11), 6, 0.9)
+    M["velvet"] = noisy_mat("Velvet", (0.06, 0.02, 0.12), (0.12, 0.04, 0.2), 30, 0.9, bump=0.1)
+    M["desk_leather"] = noisy_mat("DeskLeather", (0.18, 0.03, 0.03), (0.32, 0.06, 0.05), 25,
+                                  0.55, bump=0.15)
+    M["pewter"] = mat("Pewter", (0.45, 0.45, 0.47), 0.4, 1.0)
+    M["paper"] = mat("Paper", (0.86, 0.82, 0.72), 0.9)
+    M["old_parchment"] = noisy_mat("OldParchment", (0.62, 0.5, 0.32), (0.85, 0.74, 0.52), 9, 0.9,
+                                   bump=0.05)
+    M["black_ink"] = mat("BlackInk", (0.02, 0.02, 0.03), 0.2)
+    M["seal_wax"] = mat("SealWax", (0.5, 0.03, 0.03), 0.4)
+    M["clear_glass"] = glass_mat("ClearGlass", (0.9, 0.95, 1.0))
+    M["soot"] = mat("Soot", (0.03, 0.025, 0.02), 1)
+    M["bone"] = mat("Bone", (0.85, 0.8, 0.68), 0.6)
     return M
+
+
+def glass_mat(name, color):
+    """Clear glass (transmission), for inkwells and hourglasses."""
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    bsdf = m.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = (*color, 1)
+    bsdf.inputs["Roughness"].default_value = 0.02
+    bsdf.inputs["Transmission Weight"].default_value = 1.0
+    bsdf.inputs["IOR"].default_value = 1.45
+    return m
 
 
 def material(key):
