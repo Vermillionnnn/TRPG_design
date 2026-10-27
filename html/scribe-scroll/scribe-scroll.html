@@ -56,6 +56,11 @@ body{font-family:var(--f-body);line-height:1.75;overflow-x:clip}
 .pip-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 #scene *{pointer-events:none}
+/* only the scroll rack under the window takes clicks: the cabinet opens the scroll box, each scroll in it is cast */
+#scene #rackHit,#scene .rack-scroll,#scene .rack-scroll *{pointer-events:auto;cursor:pointer}
+#rackHit:focus,.rack-scroll:focus{outline:none}
+#rackHit:hover,#rackHit:focus-visible{stroke:#f2d27a;stroke-width:2}
+.rack-scroll:hover .end,.rack-scroll:focus-visible .end{stroke:#f2d27a;stroke-width:2.4}
 .flame{transform-box:fill-box;transform-origin:50% 100%;animation:flick 1.6s ease-in-out infinite alternate}
 .flame.f2{animation-duration:1.1s;animation-delay:-.4s}
 @keyframes flick{
@@ -129,6 +134,13 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
 @keyframes caret{50%{opacity:0}}
 .w i.bad{animation:bad .35s}
 @keyframes bad{0%{background:rgba(156,53,38,.5);color:#fff7e6}100%{background:transparent}}
+/* a slip of the pen: the word jolts and a blot spreads on the parchment, then soaks in */
+.w.shake{animation:shake .32s}
+@keyframes shake{20%{transform:translateX(-4px) rotate(-1deg)}45%{transform:translateX(3px) rotate(.6deg)}70%{transform:translateX(-2px)}}
+.splat{position:absolute;z-index:1;width:30px;height:30px;margin:-15px 0 0 -15px;pointer-events:none;transform:rotate(var(--r,0deg));
+  background:radial-gradient(circle at 50% 50%,rgba(31,26,23,.85) 0 28%,rgba(31,26,23,.45) 30% 36%,transparent 38%),radial-gradient(circle at 82% 22%,rgba(31,26,23,.75) 0 7%,transparent 9%),radial-gradient(circle at 14% 72%,rgba(31,26,23,.7) 0 6%,transparent 8%),radial-gradient(circle at 70% 86%,rgba(31,26,23,.6) 0 4%,transparent 6%);
+  animation:splat 1.8s ease-out forwards}
+@keyframes splat{0%{transform:rotate(var(--r,0deg)) scale(.2)}12%{transform:rotate(var(--r,0deg)) scale(1.15)}25%{transform:rotate(var(--r,0deg)) scale(1);opacity:1}100%{transform:rotate(var(--r,0deg)) scale(1.05);opacity:0}}
 .w small{font-family:var(--f-body);font-size:12px;color:var(--rubric);opacity:.7;line-height:1;letter-spacing:.04em}
 .w.cur small{opacity:1}
 .ink{position:absolute;inset:0;z-index:2;width:100%;height:100%;box-sizing:border-box;margin:0;padding:0;border:0;opacity:0;font-size:16px;background:transparent;color:transparent;caret-color:transparent;cursor:text}
@@ -152,9 +164,9 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
 .score li{display:grid;justify-items:center;gap:2px;border:1px solid var(--rule);border-radius:2px;padding:6px 12px 5px;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .score li b{font-weight:400;font-size:16px;color:var(--lime)}
 .score li .g-flawless{color:var(--ochre)}
-.score li .g-ruined{color:#8a8174}
+.score li .use{margin-top:4px;padding:4px 10px;font-size:12px}
 
-@media (prefers-reduced-motion:reduce){.flame,.frame.pip{animation:none}.w i.at::after{animation:none}}
+@media (prefers-reduced-motion:reduce){.flame,.frame.pip,.w.shake{animation:none}.w i.at::after{animation:none}}
 </style>
 
 <section class="stage" aria-label="湿壁画风格：在烛堡书库抄写法术卷轴的法师">
@@ -233,9 +245,11 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     <path d="M763,470 L763,262 A92,92 0 0 1 947,262 L947,470 M777,470 L777,262 A78,78 0 0 1 933,262 L933,470" fill="none" stroke="#8a6f4e" stroke-width="1.6"/>
     <rect x="756" y="468" width="198" height="14" fill="#e3d4b4" stroke="#8a6f4e" stroke-width="1.6"/>
 
-    <!-- scroll rack beneath the window -->
+    <!-- scroll rack beneath the window: empty until scrolls are sealed, then each one can be taken out and cast -->
     <rect x="768" y="492" width="184" height="110" fill="#6b4a32" stroke="#3a2416" stroke-width="2"/>
     <g id="rack"></g>
+    <rect id="rackHit" x="768" y="492" width="184" height="110" fill="transparent" tabindex="0" role="button" aria-label="卷轴柜：查看卷轴匣"/>
+    <g id="rackScrolls"></g>
 
     <!-- bookcase -->
     <rect x="44" y="166" width="248" height="436" fill="#6b4a32" stroke="#3a2416" stroke-width="2"/>
@@ -337,8 +351,10 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
         <path d="M30,-88 L74,-44" stroke="#14182e" stroke-width="18"/>
         <path d="M30,-88 L74,-44" stroke="#262d55" stroke-width="14"/>
       </g>
-      <path d="M48,-74 L70,-50 C70,-38 64,-28 56,-24 C50,-34 46,-56 48,-74Z" fill="#262d55" stroke="#14182e" stroke-width="1.6" stroke-linejoin="round"/>
-      <path d="M70,-48 C70,-38 64,-28 56,-24" fill="none" stroke="#d3a44c" stroke-width="1.6"/>
+      <!-- closed cuff at the wrist -->
+      <path d="M62,-56 L71,-47" stroke="#14182e" stroke-width="18"/>
+      <path d="M62,-56 L71,-47" stroke="#d3a44c" stroke-width="14"/>
+      <path d="M62,-56 L71,-47" stroke="#8f3324" stroke-width="2" stroke-dasharray="2 3"/>
       <path d="M72,-46 C76,-48 82,-44 84,-38 C86,-32 84,-26 80,-25 C76,-24 72,-30 70,-36Z" fill="#f3e2cf" stroke="#5a2a1c" stroke-width="1.4" stroke-linejoin="round"/>
       <path d="M78,-26 C80,-30 80,-34 78,-38 M74,-29 C76,-32 76,-36 74,-40" fill="none" stroke="#5a2a1c" stroke-width=".9" stroke-linecap="round"/>
 
@@ -348,8 +364,10 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
         <path id="upperI" stroke="#34406e" stroke-width="19"/>
         <path id="foreO" stroke="#14182e" stroke-width="19"/>
         <path id="foreI" stroke="#34406e" stroke-width="15"/>
-        <path id="sleeve" fill="#34406e" stroke="#14182e" stroke-width="1.6" stroke-linejoin="round"/>
-        <path id="sleeveHem" stroke="#d3a44c" stroke-width="2"/>
+        <!-- closed cuff: a gilt band tied round the wrist -->
+        <path id="sleeve" stroke="#14182e" stroke-width="21" stroke-linecap="butt"/>
+        <path id="sleeveHem" stroke="#d3a44c" stroke-width="17" stroke-linecap="butt"/>
+        <path id="sleeveDots" stroke="#8f3324" stroke-width="2.2" stroke-linecap="butt" stroke-dasharray="2 3"/>
         <!-- the hand is drawn along the forearm: a loose fist, the quill through it, the thumb over the quill -->
         <g id="handNear" fill="#f3e2cf" stroke="#5a2a1c" stroke-width="1.4" stroke-linejoin="round">
           <path d="M-2,-6 C5,-8 12,-8 15,-4 C18,-1 18,4 15,6 C10,8 4,8 -2,6Z"/>
@@ -501,9 +519,9 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
       <span class="warn" id="imeWarn" hidden>输入法正在组字，请切换到英文输入再打。</span>
     </div>
     <div>
-      <h3 class="pad-sub">卷轴匣</h3>
+      <h3 class="pad-sub" id="boxTitle">卷轴匣 · <span id="boxCount">0</span> / 18</h3>
       <ol class="score" id="records"></ol>
-      <p class="pad-sub" id="noRecords">还没有封好的卷轴。</p>
+      <p class="pad-sub" id="noRecords">卷轴柜还是空的。抄好一卷，它会收进画里窗下的卷轴柜；点柜里的卷轴或这里的「展开施放」，就能用掉它放出法术。</p>
     </div>
   </section>
 </main>
@@ -599,13 +617,9 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
   const rack = $('rack');
   for (let r = 0; r < 3; r++) for (let c = 0; c < 6; c++) {
     const x = 775 + c * 29.5, y = 499 + r * 34;
+    // the holes start empty; sealed scrolls are drawn into them by renderBox
     el('rect', { x, y, width: 26, height: 30, fill: '#2e1f16' }, rack);
-    const n = 1 + Math.floor(rnd() * 3);
-    for (let k = 0; k < n; k++) {
-      const cx = x + 7 + (k % 2) * 12, cy = y + 22 - Math.floor(k / 2) * 12;
-      el('circle', { cx, cy, r: 5.5, fill: '#e7d9bb', stroke: '#8a6f4e', 'stroke-width': 1 }, rack);
-      el('path', { d: `M${cx - 5.5},${cy} h11`, stroke: '#9c3526', 'stroke-width': 1.6 }, rack);
-    }
+    rnd(); // keeps the seeded sequence, so the plaster grain below stays as it was
   }
 
   // ---------- floor tiles in a painter's perspective ----------
@@ -892,10 +906,25 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     S.errs++; S.tries++;
     const w = S.words[S.wi], i = w.is[S.ci];
     i.classList.remove('bad'); void i.offsetWidth; i.classList.add('bad');
+    w.el.classList.remove('shake'); void w.el.offsetWidth; w.el.classList.add('shake');
     if (w.fade[S.ci] && S.tries >= 2 && i.textContent === '·') { i.textContent = w.w[S.ci]; i.classList.add('hint'); }
+    splatAt(i);
     addBlot(unitPos(w.off + S.ci));
+    // in the fresco the quill jerks, the circle flickers red and the raven starts
+    pen = -3; nimRed = 1; ravenFlap = Math.max(ravenFlap, .35);
     SFX.blot();
     showMeter();
+  };
+  const splatAt = i => {
+    if (sheet.querySelectorAll('.splat').length > 6) return;
+    const r = i.getBoundingClientRect(), s = sheet.getBoundingClientRect();
+    const sp = document.createElement('span');
+    sp.className = 'splat';
+    sp.style.left = (r.left - s.left + r.width / 2) + 'px';
+    sp.style.top = (r.top - s.top + r.height * .6) + 'px';
+    sp.style.setProperty('--r', Math.round(Math.random() * 360) + 'deg');
+    sp.addEventListener('animationend', () => sp.remove());
+    sheet.appendChild(sp);
   };
   const finishWord = w => {
     spawnPaper(w.key ? 'gold' : 'plain');
@@ -908,23 +937,32 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     S.done = true; S.t1 = performance.now();
     const secs = (S.t1 - S.t0) / 1000, wpm = wpmNow(), acc = Math.round(S.letters / (S.letters + S.errs) * 100);
     const grade = S.errs === 0 ? 'flawless' : S.errs <= S.allow ? 'ok' : 'ruined';
-    const GN = { flawless: '无瑕', ok: '成卷', ruined: '废卷' };
     const stamp = $('stamp');
     stamp.textContent = GN[grade];
     stamp.className = 'stamp' + (grade === 'flawless' ? ' gold' : grade === 'ruined' ? ' grey' : '');
     const line = grade === 'ruined'
       ? `墨渍 ${S.errs} 滴，超过了允许的 ${S.allow} 滴，卷轴读不通，法术哑火了。`
       : grade === 'flawless' ? `一滴墨渍也没有，${S.spell.zh}的卷轴光彩照人。` : `墨渍 ${S.errs} 滴，在允许的 ${S.allow} 滴以内，卷轴可以用。`;
-    $('sealText').textContent = `${line} 用时 ${secs.toFixed(1)} 秒，${wpm} 词/分，准确率 ${acc}%。按回车或「重新铺纸」再抄一卷。`;
-    $('srNow').textContent = `${GN[grade]}。${line}`;
-    sheet.classList.add('sealed');
     const best = saveBest(wpm, grade);
-    addRecord(grade, GN[grade], wpm, acc, best);
+    // a good scroll is rolled up and put away in the rack; it is cast later, from the rack or the box
+    let stored = '';
+    if (grade !== 'ruined') {
+      if (box.length >= BOX_MAX) stored = '卷轴柜已经满了，这一卷放不进去，先用掉几卷吧。';
+      else {
+        const item = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), spell: S.spell.id, diff: S.diff, grade, wpm, acc };
+        box.push(item); saveBox();
+        stored = '卷轴已收进窗下的卷轴柜，点它就能施放。';
+        stowScroll(grade === 'flawless');
+      }
+    }
+    $('sealText').textContent = `${line}${stored} 用时 ${secs.toFixed(1)} 秒，${wpm} 词/分${best ? '（最佳）' : ''}，准确率 ${acc}%。按回车或「重新铺纸」再抄一卷。`;
+    $('srNow').textContent = `${GN[grade]}。${line}${stored}`;
+    sheet.classList.add('sealed');
     const seal = qpt(.86, .94);
     $('waxSeal').setAttribute('cx', f1(seal[0])); $('waxSeal').setAttribute('cy', f1(seal[1]));
     if (grade !== 'ruined') $('waxSeal').setAttribute('opacity', 1);
     if (grade === 'ruined') { fizzle(); SFX.fizzle(); }
-    else { cast(S.spell.id, grade === 'flawless'); SFX.cast(S.spell.id); if (grade === 'flawless') SFX.flawless(); }
+    else if (grade === 'flawless') SFX.flawless();
     setCursor();
     showMeter();
   };
@@ -940,18 +978,81 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     if (isBest) { all[k] = wpm; try { localStorage.setItem(BEST_KEY, JSON.stringify(all)); } catch (e) { /* storage may be off */ } }
     return isBest;
   };
-  const addRecord = (grade, gname, wpm, acc, best) => {
-    const li = document.createElement('li');
-    li.innerHTML = '<b></b><span></span><span></span>';
-    li.children[0].textContent = S.spell.zh;
-    li.children[1].textContent = `${gname} · ${DIFF[S.diff]}`;
-    li.children[1].className = 'g-' + grade;
-    li.children[2].textContent = `${wpm} 词/分 · ${acc}%${best ? ' · 最佳' : ''}`;
-    const list = $('records');
-    list.insertBefore(li, list.firstChild);
-    while (list.children.length > 8) list.lastChild.remove();
-    $('noRecords').hidden = true;
+
+  // ---------- the scroll box: sealed scrolls wait in the rack until they are cast, one use each ----------
+  // kept only in this browser, like the best times
+  const BOX_KEY = 'scribe-scroll-box', BOX_MAX = 18;
+  const GN = { flawless: '无瑕', ok: '成卷', ruined: '废卷' };
+  const TIE = { '塑能': '#9c3526', '防护': '#4f6f9a', '咒法': '#6f7a56' };
+  let box = [];
+  try { box = JSON.parse(localStorage.getItem(BOX_KEY) || '[]'); } catch (e) { box = []; }
+  if (!Array.isArray(box)) box = [];
+  box = box.filter(b => b && SPELLS.some(s => s.id === b.spell)).slice(0, BOX_MAX);
+  const saveBox = () => { try { localStorage.setItem(BOX_KEY, JSON.stringify(box)); } catch (e) { /* storage may be off */ } };
+  const holeAt = i => [775 + (i % 6) * 29.5, 499 + Math.floor(i / 6) * 34];
+  const holeCentre = i => { const [x, y] = holeAt(i); return [x + 13, y + 17]; };
+  let stowing = 0; // scrolls still in flight to the rack are drawn when they land
+  const renderBox = () => {
+    const g = $('rackScrolls'), list = $('records');
+    g.textContent = ''; list.textContent = '';
+    box.forEach((b, i) => {
+      const sp = SPELLS.find(s => s.id === b.spell);
+      if (i < box.length - stowing) {
+        const [x, y] = holeAt(i), label = `使用卷轴：${sp.zh}（${GN[b.grade]}）`;
+        const sg = el('g', { class: 'rack-scroll', tabindex: 0, role: 'button', 'aria-label': label }, g);
+        el('title', {}, sg).textContent = label;
+        el('rect', { x, y, width: 26, height: 30, fill: 'transparent' }, sg);
+        el('circle', { class: 'end', cx: x + 13, cy: y + 17, r: 9, fill: '#e7d9bb', stroke: b.grade === 'flawless' ? '#d3a44c' : '#8a6f4e', 'stroke-width': 1.4 }, sg);
+        el('circle', { cx: x + 13, cy: y + 17, r: 3, fill: 'none', stroke: '#8a6f4e', 'stroke-width': 1 }, sg);
+        el('path', { d: `M${x + 4},${y + 17} h18`, stroke: TIE[sp.school], 'stroke-width': 2.4 }, sg);
+        sg.addEventListener('click', () => useScroll(b.id));
+        sg.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); useScroll(b.id); } });
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<b></b><span></span><span></span><button class="oct use" type="button">展开施放</button>';
+      li.children[0].textContent = sp.zh;
+      li.children[1].textContent = `${GN[b.grade]} · ${DIFF[b.diff]}`;
+      li.children[1].className = 'g-' + b.grade;
+      li.children[2].textContent = `${b.wpm} 词/分 · ${b.acc}%`;
+      li.children[3].addEventListener('click', () => useScroll(b.id));
+      list.appendChild(li);
+    });
+    $('boxCount').textContent = box.length;
+    $('noRecords').hidden = box.length > 0;
   };
+  // a rolled scroll flies from the desk into its hole
+  const stowScroll = gold => {
+    stowing++;
+    renderBox();
+    const roll = el('g', {}, fxG);
+    el('circle', { r: 7, fill: '#e7d9bb', stroke: gold ? '#d3a44c' : '#8a6f4e', 'stroke-width': 1.6 }, roll);
+    el('circle', { r: 2.4, fill: 'none', stroke: '#8a6f4e', 'stroke-width': 1 }, roll);
+    later(.6, () => {
+      // the first scroll still in flight takes the first free hole, even if others were used meanwhile
+      const from = toWorld(qpt(.5, .6)), to = holeCentre(box.length - stowing);
+      castPose = now() + 1.2;
+      if (gold) burst(fxG, toWorld([8, -270]), 26, ['#f2d27a', '#fff2c0'], 140, 1.6);
+      shoot(roll, from, [(from[0] + to[0]) / 2, Math.min(from[1], to[1]) - 120], to, 1.1, () => { stowing = Math.max(0, stowing - 1); renderBox(); ravenFlap = .5; SFX.word(5, true); }, trail(['#f2d27a']));
+    });
+  };
+  // using a scroll spends it: it flies from the rack to her hand and the spell goes off
+  const useScroll = id => {
+    const i = box.findIndex(b => b.id === id);
+    if (i < 0 || i >= box.length - stowing) return;
+    const b = box[i];
+    box.splice(i, 1); saveBox(); renderBox();
+    const roll = el('g', {}, fxG);
+    el('circle', { r: 7, fill: '#e7d9bb', stroke: '#d3a44c', 'stroke-width': 1.6 }, roll);
+    const from = holeCentre(i), to = toWorld(tip);
+    castPose = now() + 3;
+    shoot(roll, from, [(from[0] + to[0]) / 2, Math.min(from[1], to[1]) - 100], to, .7, () => {
+      cast(b.spell, b.grade === 'flawless');
+      SFX.cast(b.spell);
+      $('srNow').textContent = `施放了${SPELLS.find(s => s.id === b.spell).zh}的卷轴。`;
+    });
+  };
+  $('rackHit').addEventListener('click', () => $('boxTitle').scrollIntoView({ block: 'center', behavior: RM ? 'auto' : 'smooth' }));
+  $('rackHit').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('boxTitle').scrollIntoView({ block: 'center' }); } });
 
   // input arrives through one hidden field, so phone keyboards work the same as desktop keys
   let composing = false;
@@ -986,8 +1087,11 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     el('circle', { cx: f1(x + (Math.random() - .5) * 3), cy: f1(y + (Math.random() - .5) * 3), r: f1(1.4 + Math.random() * 1.2) }, b);
     el('circle', { cx: f1(x + (Math.random() - .5) * 7), cy: f1(y + (Math.random() - .5) * 6), r: .7 }, b);
     const w = toWorld(tip);
-    const drop = el('circle', { r: 1.6, fill: '#1f1a17' }, $('fx'));
-    part(drop, { x: w[0], y: w[1], vy: 20, g: 300, max: .25, o0: 1, o1: 1 });
+    // ink flicks off the nib in a spray of drops
+    for (let k = 0; k < (RM ? 1 : 7); k++) {
+      const drop = el('circle', { r: f1(1 + Math.random() * 1.4), fill: '#1f1a17' }, $('fx'));
+      part(drop, { x: w[0], y: w[1], vx: (Math.random() - .5) * 120, vy: -40 - Math.random() * 60, g: 420, max: .4 + Math.random() * .2, o0: 1, o1: .5 });
+    }
   };
 
   // ---------- talismans drifting up from the desk ----------
@@ -1178,10 +1282,9 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     const up = `M${P(SHOULDER)} L${P(E)}`, fore = `M${P(E)} L${P(w)}`;
     $('upperO').setAttribute('d', up); $('upperI').setAttribute('d', up);
     $('foreO').setAttribute('d', fore); $('foreI').setAttribute('d', fore);
-    // the bell sleeve droops from the forearm with its gilt hem
-    const A = lerp(E, w, .4), B = lerp(E, w, .93);
-    $('sleeve').setAttribute('d', `M${P(A)} L${P(B)} C${P([B[0] + 5, B[1] + 10])} ${P([B[0] + 3, B[1] + 20])} ${P([B[0] - 1, B[1] + 25])} C${P([(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 + 36])} ${P([A[0] - 6, A[1] + 32])} ${P([A[0] - 8, A[1] + 26])}Z`);
-    $('sleeveHem').setAttribute('d', `M${P([B[0] - 1, B[1] + 25])} C${P([(A[0] + B[0]) / 2, (A[1] + B[1]) / 2 + 36])} ${P([A[0] - 6, A[1] + 32])} ${P([A[0] - 8, A[1] + 26])}`);
+    // the sleeve closes in a gilt cuff just short of the wrist
+    const cuff = `M${P(lerp(E, w, .8))} L${P(lerp(E, w, .97))}`;
+    $('sleeve').setAttribute('d', cuff); $('sleeveHem').setAttribute('d', cuff); $('sleeveDots').setAttribute('d', cuff);
     foreA = Math.atan2(w[1] - E[1], w[0] - E[0]) * 180 / Math.PI;
     const hand = `translate(${P(w)}) rotate(${f1(foreA)})`;
     $('handNear').setAttribute('transform', hand);
@@ -1200,7 +1303,7 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
 
   // ---------- frame loop ----------
   const head = $('head'), eye = $('eye'), mage = $('mage'), nimRot = $('nimRot'), nimGlow = $('nimGlow'), glow = $('glow'), raven = $('raven'), ravenWing = $('ravenWing');
-  let last = now(), nextBlink = last + 2.5, blinkT = -1, headR = 12, nimAng = 0, energy = 0, nextRavenTurn = last + 5;
+  let last = now(), nextBlink = last + 2.5, blinkT = -1, headR = 12, nimAng = 0, energy = 0, nimRed = 0, nextRavenTurn = last + 5;
   const frame = () => {
     const wall = now(), dt = Math.min(.05, wall - last); last = wall; clock = wall;
     for (let i = timers.length - 1; i >= 0; i--) if (timers[i].t <= wall) { const f = timers[i].fn; timers.splice(i, 1); f(); }
@@ -1224,7 +1327,10 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
 
     energy *= Math.exp(-dt * .6);
     if (!RM) nimAng += dt * (3 + energy * 22);
-    nimRot.setAttribute('transform', `rotate(${f1(nimAng)})`);
+    // a slip makes the circle stutter and flash red for a moment
+    nimRed *= Math.exp(-dt * 4);
+    nimRot.setAttribute('transform', `rotate(${f1(nimAng + (RM ? 0 : (Math.random() - .5) * nimRed * 6))})`);
+    nimRot.setAttribute('stroke', nimRed > .25 ? '#c0392b' : '#e0b65a');
     nimGlow.setAttribute('opacity', Math.min(1, .3 + energy * .45).toFixed(3));
 
     mageAlpha += (mageAlphaT - mageAlpha) * Math.min(1, dt * (RM ? 60 : 9));
@@ -1278,6 +1384,7 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     requestAnimationFrame(frame);
   };
 
+  renderBox();
   newScroll();
   $('startLabel').textContent = '铺开卷轴';
   requestAnimationFrame(frame);
