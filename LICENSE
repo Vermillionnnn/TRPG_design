@@ -12,11 +12,11 @@ Copyright (c) 2026 VM. All rights reserved.
 
 - D&D 相关设定：《龙与地下城》、深水城（Waterdeep）、黑杖（Blackstaff）等名称和设定归 Wizards of the Coast 所有。本仓库是非官方的粉丝内容，与 WotC 无关，也未获其认可。
 - 角色设计：作品中的角色如果是其他玩家或画师创作的原创角色，角色设计归原作者所有。生图时用到的参考图不在本仓库中。
-- 字体：网页里用到的字体都不属于设计者，仍按各自的 SIL Open Font License 1.1 授权（https://openfontlicense.org/），不受上面「保留所有权利」的限制：
-  - Noto Serif SC（Google）：以子集形式嵌入 `html/bard-lute/` 和 `html/scribe-scroll/`，许可证全文见 `html/bard-lute/OFL.txt`。
-  - Fondamento（Astigmatic）：以子集形式嵌入 `html/scribe-scroll/`，用于卷轴上的英文咒文。
-  - Uncial Antiqua（Astigmatic）：`html/bard-lute/` 的标题与题记、`html/scribe-scroll/` 的湿壁画题记，是由它转成的文字轮廓。
-  - ZCOOL XiaoWei（站酷）：`html/bard-lute/` 的中文标题，是由它转成的文字轮廓。
+- 字体：网页里用到的字体都不属于设计者，仍按各自的 SIL Open Font License 1.1 授权，不受上面「保留所有权利」的限制。版权声明和许可证全文见 `html/bard-lute/OFL.txt` 和 `html/scribe-scroll/OFL.txt`。
+  - Noto Serif SC，© 2017-2024 Adobe，由 Google Fonts 发布：以子集形式嵌入 `html/bard-lute/` 和 `html/scribe-scroll/`。
+  - Fondamento，© 2011 Brian J. Bonislawsky DBA Astigmatic（AOETI），保留字体名「Fondamento」：以子集形式嵌入 `html/scribe-scroll/`，用于卷轴上的英文咒文。
+  - Uncial Antiqua，© 2011 Brian J. Bonislawsky DBA Astigmatic（AOETI），保留字体名「Uncial Antiqua」：`html/bard-lute/` 的标题与题记、`html/scribe-scroll/` 的湿壁画题记，是由它转成的文字轮廓。
+  - ZCOOL XiaoWei（站酷小薇LOGO体），© 2018 The ZCOOL XiaoWei Project Authors，设计者 Li Dawei：`html/bard-lute/` 的中文标题，是由它转成的文字轮廓。
 
 ## 关于 AI 生成内容
 
@@ -43,18 +43,21 @@ released under an open source license; all rights are reserved.
   remain theirs. Reference images used for image generation are not in this
   repository.
 - Fonts: none of the fonts used in the web pages belong to the designer. Each
-  remains under its own SIL Open Font License 1.1
-  (https://openfontlicense.org/) and is not covered by the reservation of
-  rights above:
-  - Noto Serif SC (Google), embedded as a subset in html/bard-lute/ and
-    html/scribe-scroll/; the full license text is in html/bard-lute/OFL.txt.
-  - Fondamento (Astigmatic), embedded as a subset in html/scribe-scroll/ for
-    the incantations on the scroll.
-  - Uncial Antiqua (Astigmatic), converted to letter outlines for the headings
-    and titulus of html/bard-lute/ and the fresco titulus of
+  remains under its own SIL Open Font License 1.1 and is not covered by the
+  reservation of rights above. The copyright notices and the full license
+  text are in html/bard-lute/OFL.txt and html/scribe-scroll/OFL.txt.
+  - Noto Serif SC, (c) 2017-2024 Adobe, published by Google Fonts: embedded
+    as a subset in html/bard-lute/ and html/scribe-scroll/.
+  - Fondamento, (c) 2011 Brian J. Bonislawsky DBA Astigmatic (AOETI), with
+    Reserved Font Name "Fondamento": embedded as a subset in
+    html/scribe-scroll/ for the incantations on the scroll.
+  - Uncial Antiqua, (c) 2011 Brian J. Bonislawsky DBA Astigmatic (AOETI),
+    with Reserved Font Name "Uncial Antiqua": converted to letter outlines for
+    the headings and titulus of html/bard-lute/ and the fresco titulus of
     html/scribe-scroll/.
-  - ZCOOL XiaoWei (ZCOOL), converted to letter outlines for the Chinese
-    headings of html/bard-lute/.
+  - ZCOOL XiaoWei, (c) 2018 The ZCOOL XiaoWei Project Authors, designed by
+    Li Dawei: converted to letter outlines for the Chinese headings of
+    html/bard-lute/.
 
 ## About AI-generated content
 

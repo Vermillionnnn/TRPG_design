@@ -10,6 +10,7 @@
 | `scribe-scroll-release.html` | 发布版：补上文档外壳，可以单独用浏览器打开或发给别人，由下面的脚本生成 |
 | `tools/build_release.py` | 从 Artifact 源生成发布版 |
 | `tools/subset_font.py` | 从 Google Fonts 取两种字体的子集，重新嵌进页面 |
+| `OFL.txt` | 页面里三种字体的版权声明和 SIL OFL 1.1 许可证全文 |
 | `tools/compose_titulus.py` | 从《林间夜曲》题记的安色尔体轮廓里拆出字母，拼成新的拉丁题记，不需要下载字体 |
 
 改了 `scribe-scroll.html` 之后重新生成发布版：
@@ -28,11 +29,13 @@ python3 html/scribe-scroll/tools/compose_titulus.py 'HIC·MAGA·CARMINA·NOTAT' 
 
 ## 字体
 
-| 字体 | 设计者 | 许可 | 用在哪里 | 子集 |
+| 字体 | 版权方 | 许可 | 用在哪里 | 子集 |
 | --- | --- | --- | --- | --- |
-| [Noto Serif SC](https://fonts.google.com/noto/specimen/Noto+Serif+SC) | Google（[google/fonts](https://github.com/google/fonts/tree/main/ofl/notoserifsc)） | SIL OFL 1.1 | 全页正文、标题、卷轴上的中文释义 | 页面里出现的所有非 ASCII 字符 + 可打印 ASCII |
+| [Noto Serif SC](https://fonts.google.com/noto/specimen/Noto+Serif+SC) | Adobe，由 Google Fonts 发布（[google/fonts](https://github.com/google/fonts/tree/main/ofl/notoserifsc)） | SIL OFL 1.1 | 全页正文、标题、卷轴上的中文释义 | 页面里出现的所有非 ASCII 字符 + 可打印 ASCII |
 | [Fondamento](https://fonts.google.com/specimen/Fondamento) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/fondamento)） | SIL OFL 1.1 | 羊皮纸上的英文咒文（`.sheet .text`） | 可打印 ASCII + 中点 `·`（褪色字母的占位符） |
-| Uncial Antiqua | Astigmatic | SIL OFL 1.1 | 湿壁画题记（只用字母轮廓，见下） | — |
+| [Uncial Antiqua](https://fonts.google.com/specimen/Uncial+Antiqua) | Astigmatic（[google/fonts](https://github.com/google/fonts/tree/main/ofl/uncialantiqua)） | SIL OFL 1.1 | 湿壁画题记（只用字母轮廓，见下） | — |
+
+三种字体的完整版权声明和许可证全文在 [`OFL.txt`](OFL.txt)。
 
 咒文每个字母是单独的 `<span>`，连笔草书会断开，所以选了不连笔的意大利文书手写体 Fondamento。备选也都核对过（都是 SIL OFL，信息取自 google/fonts 的 `METADATA.pb`）：Almendra（Ana Sanfelippo）、IM Fell DW Pica 斜体（Igino Marini）、Tangerine（Toshi Omagari）、Mea Culpa（Robert Leuschke）、Pinyon Script（Nicole Fally）。后三种是连笔体，拆成单字母后效果不好。
 

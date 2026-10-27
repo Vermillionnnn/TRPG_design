@@ -1,5 +1,14 @@
+Fonts used in html/bard-lute/
+
 Noto Serif SC (subset embedded as a woff2 data URI in bard-lute.html and bard-lute-release.html)
 Copyright (c) 2017-2024 Adobe (http://www.adobe.com/).
+
+Uncial Antiqua (letter outlines of the headings and the titulus)
+Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+(astigma@astigmatic.com), with Reserved Font Names "Uncial Antiqua"
+
+ZCOOL XiaoWei (letter outlines of the Chinese headings)
+Copyright 2018 The ZCOOL XiaoWei Project Authors (https://github.com/googlefonts/zcool-xiaowei/)
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.
