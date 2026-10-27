@@ -520,11 +520,12 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     </div>
     <div class="tools-row">
       <button class="oct" id="mute" type="button" aria-pressed="false">声音：开</button>
+      <button class="oct" id="dbgToggle" type="button" aria-pressed="false" aria-controls="debug">调试</button>
       <button class="oct" id="quit" type="button" hidden>弃卷</button>
       <span class="warn" id="ruinNote" hidden>墨渍已经超过允许的数目，这一卷注定是废卷，可以弃卷重来。</span>
       <span class="warn" id="imeWarn" hidden>输入法正在组字，请切换到英文输入再打。</span>
     </div>
-    <!-- debug panel: only shown when the address ends in #debug -->
+    <!-- debug panel: opened with the 调试 button (or #debug in the address) -->
     <div class="debug" id="debug" hidden>
       <b>调试</b>
       <button class="oct" id="dbgFill" type="button">卷轴柜加满</button>
@@ -1303,10 +1304,18 @@ h1{font-weight:600;font-size:clamp(40px,6vw,64px);line-height:1.05;margin:10px 0
     $('writing').setAttribute('opacity', .35);
   };
 
-  // ---------- debug panel, shown when the address ends in #debug ----------
-  const showDebug = () => { $('debug').hidden = location.hash !== '#debug'; };
-  window.addEventListener('hashchange', showDebug);
-  showDebug();
+  // ---------- debug panel: the 调试 button opens it, and this browser remembers; #debug in the address also opens it ----------
+  const DEBUG_KEY = 'scribe-scroll-debug';
+  const setDebug = on => {
+    $('debug').hidden = !on;
+    $('dbgToggle').setAttribute('aria-pressed', on);
+    try { localStorage.setItem(DEBUG_KEY, on ? '1' : ''); } catch (e) { /* storage may be off */ }
+  };
+  let debugOn = location.hash === '#debug';
+  try { debugOn = debugOn || localStorage.getItem(DEBUG_KEY) === '1'; } catch (e) { /* storage may be off */ }
+  setDebug(debugOn);
+  $('dbgToggle').addEventListener('click', () => setDebug($('debug').hidden));
+  window.addEventListener('hashchange', () => { if (location.hash === '#debug') setDebug(true); });
   SPELLS.forEach(s => {
     const b = document.createElement('button');
     b.className = 'oct'; b.type = 'button'; b.textContent = '试放' + s.zh;
