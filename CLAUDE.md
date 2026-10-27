@@ -61,3 +61,7 @@ Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，
 
 - 不要提交 `.blend`、渲染中间帧、`.work/` 之类可以重新生成的大文件。
 - 改了脚本参数或输出文件时，同步更新对应 README。
+- 推送或开 PR 之前检查身份（仓库是公开的，不能带出设计者的真名或私人邮箱）：
+  1. `git config user.name` / `user.email` 只能是 `VM` + `132499586+Vermillionnnn@users.noreply.github.com`，或 Claude + `noreply@anthropic.com`；不是的话先用 `git config user.name/user.email` 改掉再提交。
+  2. `git log origin/main..HEAD --format='%an <%ae> | %cn <%ce>' | sort -u` 只出现上面两种身份；commit message、改动内容、PR 标题和描述里也只用 VM 或「设计者」。云端开 PR 时描述开头会自动带一行 `Requested by **名字** · project thread`，加粗的名字一律写 VM（保留上面的注释标记行和链接）。
+  3. 真名关键词不写进仓库。用它们 grep 本次的 `git log -p origin/main..HEAD`；云端从项目记忆里取，本地由 VM 自己检查。有命中就先改（未推送的 commit 用 `git commit --amend` / `git rebase` 修正），已推送到 `main` 的先告诉 VM，不要擅自改写历史。
