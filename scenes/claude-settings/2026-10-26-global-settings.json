@@ -1,0 +1,91 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": false,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [],
+    "filesystem": {
+      "denyRead": [
+        "~/"
+      ],
+      "allowRead": [
+        "~/Desktop/test",
+        "~/.julia",
+        "~/.juliaup",
+        "~/.gitconfig"
+      ],
+      "allowWrite": [
+        "~/.julia/compiled",
+        "~/.julia/logs",
+        "~/.julia/scratchspaces"
+      ]
+    },
+    "network": {
+      "strictAllowlist": true,
+      "allowedDomains": [
+        "github.com",
+        "api.github.com"
+      ]
+    }
+  },
+  "permissions": {
+    "blockReadsOutsideWorkingDirectories": true,
+    "deny": [
+      "Read(~/.ssh/**)",
+      "Read(~/.config/gh/**)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * --delete *)",
+      "Edit(~/.claude/settings.json)",
+      "Write(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.local.json)",
+      "Write(~/.claude/settings.local.json)",
+      "Edit(~/.claude.json)",
+      "Write(~/.claude.json)",
+      "Edit(./.claude/settings.json)",
+      "Edit(**/.claude/settings.json)",
+      "Edit(./.claude/settings.local.json)",
+      "Edit(**/.claude/settings.local.json)",
+      "Edit(./.mcp.json)",
+      "Edit(**/.mcp.json)",
+      "Edit(./.claude/hooks/**)",
+      "Edit(**/.claude/hooks/**)",
+      "Edit(./.claude/skills/**)",
+      "Edit(**/.claude/skills/**)",
+      "Edit(./.claude/agents/**)",
+      "Edit(**/.claude/agents/**)",
+      "Edit(./.claude/commands/**)",
+      "Edit(**/.claude/commands/**)",
+      "Write(./.claude/settings.json)",
+      "Write(**/.claude/settings.json)",
+      "Write(./.claude/settings.local.json)",
+      "Write(**/.claude/settings.local.json)",
+      "Write(./.mcp.json)",
+      "Write(**/.mcp.json)",
+      "Write(./.claude/hooks/**)",
+      "Write(**/.claude/hooks/**)",
+      "Write(./.claude/skills/**)",
+      "Write(**/.claude/skills/**)",
+      "Write(./.claude/agents/**)",
+      "Write(**/.claude/agents/**)",
+      "Write(./.claude/commands/**)",
+      "Write(**/.claude/commands/**)",
+      "Bash(* --enable-autoexec*)"
+    ],
+    "ask": [
+      "WebFetch",
+      "WebSearch",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(.venv/bin/pip install *)",
+      "Bash(.venv/bin/pip3 install *)",
+      "Bash(* -m pip install *)",
+      "Bash(git clone *)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}

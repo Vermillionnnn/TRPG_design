@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(~/Desktop/test/Mystery_Novel_Competition/**)",
+      "Edit(~/Desktop/test/local/**)",
+      "Edit(~/Desktop/test/Repo1/**)"
+    ],
+    "allow": [
+      "Bash(BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh *)"
+    ]
+  }
+}

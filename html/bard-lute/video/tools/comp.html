@@ -1,0 +1,442 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+/* fonts are added by render.js from $WORK/fonts */
+:root{--wall:#1d1714;--wall2:#28201b;--lime:#efe6d2;--muted:#b8a991;--ochre:#d3a44c;--sinopia:#c4553a;--sky:#476089;--purple:#794b66;--ink:#2a1d16;--rule:#4a3b30}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;overflow:hidden}
+#stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--wall);color:var(--lime);font-family:NS,serif;font-weight:500}
+#stage::before{content:"";position:absolute;inset:0;background:
+  radial-gradient(1200px 700px at 30% 40%,rgba(80,60,45,.35),transparent 70%),
+  radial-gradient(900px 600px at 85% 80%,rgba(60,40,30,.35),transparent 70%)}
+.grain{position:absolute;inset:0;opacity:.18;mix-blend-mode:overlay;pointer-events:none;z-index:40;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 1.4 -.2'/></filter><rect width='300' height='300' filter='url(%23n)'/></svg>")}
+.scene{position:absolute;inset:0;display:none}
+.view{position:absolute;overflow:hidden;background:#111}
+.view img{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.shadow{box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.4)}
+.abs{position:absolute}
+.xw{font-family:XW,NS,serif;font-weight:400;letter-spacing:.02em}
+.unc{font-family:Uncial,serif}
+.ch{display:inline-block;will-change:transform,opacity}
+.gold{color:var(--ochre)}.red{color:var(--sinopia)}.mut{color:var(--muted)}
+/* meander bands */
+.band{position:absolute;left:0;width:1920px;height:30px;background:#9c3524;z-index:30;transform-origin:50% 50%;
+  box-shadow:0 0 0 2px #2a130c inset}
+.band svg{position:absolute;inset:3px 0;width:100%;height:24px}
+.band.top{top:0}.band.bot{bottom:0}
+/* section tag */
+.tag{position:absolute;left:110px;top:78px;display:flex;align-items:center;gap:16px;font-size:34px;letter-spacing:.2em;color:var(--ochre);z-index:20}
+.tag b{font-family:Uncial;font-weight:400;font-size:30px;letter-spacing:0;color:var(--wall);background:var(--ochre);width:58px;height:58px;display:grid;place-items:center;border-radius:50%}
+.tag i{font-style:normal;display:block;height:2px;width:80px;background:var(--ochre)}
+.tag.onimg{background:rgba(29,23,20,.82);padding:10px 22px 10px 10px;border-radius:40px}
+/* parchment plaque */
+.plaque{position:absolute;left:110px;bottom:110px;background:rgba(239,230,210,.96);color:var(--ink);padding:24px 40px 26px 46px;border-radius:4px;z-index:20;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.plaque::before{content:"";position:absolute;left:0;top:0;bottom:0;width:12px;background:var(--sinopia)}
+.plaque h3{font-family:XW,NS;font-weight:400;font-size:62px;line-height:1.1}
+.plaque p{font-size:27px;margin-top:8px;color:#5a4636}
+.sw{display:flex;gap:26px;margin-top:14px}
+.sw div{display:flex;align-items:center;gap:12px;font-size:26px;color:#5a4636}
+.sw span{width:46px;height:46px;border-radius:50%;box-shadow:0 0 0 3px rgba(42,29,22,.25) inset}
+/* cards */
+.card{position:absolute;left:1180px;width:640px;height:132px;border-radius:6px;display:flex;align-items:center;padding:0 30px 0 34px;gap:28px;border:2px solid var(--rule);color:var(--muted)}
+.card .rn{font-family:Uncial;font-size:44px;width:70px;color:var(--rule)}
+.card h4{font-family:XW,NS;font-weight:400;font-size:52px;line-height:1.1}
+.card p{font-size:22px;margin-top:4px}
+.card.on{background:var(--lime);border-color:var(--lime);color:var(--ink)}
+.card.on .rn{color:var(--sinopia)}
+.card.on p{color:#6b5543}
+.eq{position:absolute;right:30px;top:38px;height:56px;display:flex;align-items:flex-end;gap:7px}
+.eq span{width:9px;background:var(--sinopia);border-radius:2px}
+.neu{display:inline-block;width:20px;height:20px;background:#1a1410;box-shadow:0 0 0 3px var(--lime);margin-right:10px;vertical-align:-2px}
+.neu.r{background:var(--sinopia)}
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:10px;border:2px solid var(--rule);border-radius:40px;padding:8px 24px;font-size:26px;color:var(--muted);background:rgba(29,23,20,.6)}
+.chip kbd{font-family:NS;font-weight:700;font-size:22px;background:var(--lime);color:var(--ink);border-radius:6px;padding:1px 10px}
+.jd{display:inline-block;font-family:XW,NS;font-size:44px;padding:6px 26px;border-radius:8px;border:2px solid var(--rule);color:var(--rule);margin-left:14px}
+.keypop{position:absolute;width:62px;height:62px;margin:-31px 0 0 -31px;border-radius:10px;background:var(--lime);color:var(--ink);font:700 34px NS;display:grid;place-items:center;box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 0 4px var(--ochre);z-index:25}
+.burst{position:absolute;z-index:26;pointer-events:none}
+.burst i{position:absolute;width:22px;height:22px;margin:-11px;background:var(--ochre);box-shadow:0 0 0 3px #fff4d6}
+.ring{position:absolute;border:6px solid var(--ochre);border-radius:50%}
+/* wipe */
+#wipe{position:absolute;inset:0;z-index:50;pointer-events:none}
+#wipe div{position:absolute;top:-20px;height:1120px;transform:skewX(-18deg)}
+#dark{position:absolute;inset:0;background:#000;z-index:45;pointer-events:none;opacity:0}
+</style>
+<div id="stage">
+  <div class="band top" id="bandT"></div>
+  <div class="band bot" id="bandB"></div>
+
+  <!-- S1 fire -->
+  <section class="scene" id="s1">
+    <div class="view" id="v1" style="left:0;top:0;width:1920px;height:1080px"></div>
+    <div class="abs" id="s1shade" style="inset:0;background:linear-gradient(90deg,rgba(20,14,10,.92) 0%,rgba(20,14,10,.75) 38%,rgba(20,14,10,0) 70%),radial-gradient(closest-side at 65% 55%,transparent 60%,rgba(0,0,0,.6))"></div>
+    <div class="abs" style="left:150px;top:360px">
+      <div class="xw" id="s1a" style="font-size:78px;line-height:1.3">每个跑团小队</div>
+      <div class="xw" id="s1b" style="font-size:104px;line-height:1.35">都有一个<span class="gold">吟游诗人</span></div>
+      <div class="unc red" id="s1c" style="font-size:30px;margin-top:22px;letter-spacing:.06em">HIC · IOCVLATOR · CANIT · AD · IGNEM</div>
+    </div>
+  </section>
+
+  <!-- S2 title -->
+  <section class="scene" id="s2">
+    <div class="view shadow" id="v2"></div>
+    <div class="abs" style="left:120px;top:250px;width:880px">
+      <div class="unc red" id="s2e" style="font-size:30px;letter-spacing:.06em">HIC · IOCVLATOR · CANIT · AD · IGNEM</div>
+      <div class="xw" id="s2a" style="font-size:70px;line-height:1.2;margin-top:26px">我把我们团的</div>
+      <div class="xw gold" id="s2b" style="font-size:176px;line-height:1.15;margin-left:-8px">吟游诗人</div>
+      <div id="s2rule" style="height:5px;background:var(--ochre);width:0;margin:10px 0 26px"></div>
+      <div class="xw" id="s2c" style="font-size:70px;line-height:1.2">做成了一个可以玩的<span class="red" style="font-size:96px">音游</span></div>
+    </div>
+  </section>
+
+  <!-- S3 art -->
+  <section class="scene" id="s3">
+    <div class="view" id="v3" style="left:0;top:0;width:1920px;height:1080px"></div>
+    <div class="tag onimg" id="t3"><b>i</b>美术<i></i>一幅会动的湿壁画</div>
+    <div class="plaque" id="p3a"><h3>十四世纪 · 湿壁画</h3><p>石灰底 · 矿物颜料 · 平涂勾线</p></div>
+    <div class="plaque" id="p3b"><h3>赭石 · 天青 · 骨螺紫</h3>
+      <div class="sw"><div><span style="background:#c08a3e"></span>赭石</div><div><span style="background:#3d5a8f"></span>天青</div><div><span style="background:#794b66"></span>骨螺紫</div><div><span style="background:#d3a44c"></span>金箔星</div></div></div>
+    <div class="plaque" id="p3c"><h3>缀满金星的穹顶</h3><p>深蓝夜空 · 金色星点 · 一弯新月</p></div>
+    <div class="plaque" id="p3d"><h3>罗马<span style="font-family:NS;font-weight:700;font-size:.92em">回</span>纹 · 拉丁题记</h3><p><span class="unc" style="color:var(--sinopia)">HIC IOCVLATOR CANIT AD IGNEM</span> —— 此处诗人对火而歌</p></div>
+  </section>
+
+  <!-- S4 songs -->
+  <section class="scene" id="s4">
+    <div class="view shadow" id="v4" style="left:110px;top:150px;width:1000px;height:800px"></div>
+    <div class="tag" id="t4" style="left:1180px;top:110px"><b>ii</b>一键奏响</div>
+    <div class="xw" id="s4h" style="position:absolute;left:1180px;top:198px;font-size:64px">点一下，诗人就开弹</div>
+    <div class="card" id="c1" style="top:330px"><span class="rn">i</span><div><h4>绿袖子</h4><p>A 小调 · 6/8 · 英格兰民谣</p></div><div class="eq"></div></div>
+    <div class="card" id="c2" style="top:482px"><span class="rn">ii</span><div><h4>斯卡布罗集市</h4><p>E 多利亚调式 · 3/4</p></div><div class="eq"></div></div>
+    <div class="card" id="c3" style="top:634px"><span class="rn">iii</span><div><h4>春天来临</h4><p>G 大调 · 4/4 · 十三世纪</p></div><div class="eq"></div></div>
+    <div id="s4n" style="position:absolute;left:1180px;top:815px;font-size:27px;color:var(--muted);line-height:1.7"><span class="neu"></span><span class="neu r"></span>飘出的方形音符<br>取自中世纪圣咏抄本的<span class="gold">纽姆记谱</span></div>
+  </section>
+
+  <!-- S5 pad -->
+  <section class="scene" id="s5">
+    <div class="view shadow" id="v5" style="left:120px;top:282px;width:1680px;height:740px"></div>
+    <div class="tag" id="t5" style="top:72px;left:120px"><b>iii</b>自己弹</div>
+    <div class="xw" id="s5h" style="position:absolute;left:120px;top:150px;font-size:62px">和弦一扫，琴键单拨 <span class="mut" style="font-size:40px">—— 诗人跟着你的手指动</span></div>
+    <div id="s5c1" style="position:absolute;right:120px;top:90px"><span class="chip"><kbd>1</kbd>–<kbd>7</kbd>七个和弦</span></div>
+    <div id="s5c2" style="position:absolute;right:120px;top:90px"><span class="chip"><kbd>A</kbd>–<kbd>'</kbd>单音 · MIDI 键盘布局</span></div>
+    <div id="pops5"></div>
+  </section>
+
+  <!-- S6 game -->
+  <section class="scene" id="s6">
+    <div class="view shadow" id="v6" style="left:80px;top:290px;width:1760px;height:696px"></div>
+    <div class="tag" id="t6" style="top:72px;left:80px"><b>iv</b>音游</div>
+    <div class="xw" id="s6h1" style="position:absolute;left:80px;top:150px;font-size:62px">音符落到<span class="gold">金线</span>，按下对应的键</div>
+    <div class="xw" id="s6h2" style="position:absolute;left:80px;top:150px;font-size:62px">每十连击，<span class="gold">金色纽姆</span>迸发</div>
+    <div class="xw" id="s6h3" style="position:absolute;left:80px;top:150px;font-size:62px">伴奏自动弹，<span class="gold">你来弹旋律</span></div>
+    <div id="jd" style="position:absolute;left:1010px;top:160px"><span class="jd" id="jdP">完美</span><span class="jd" id="jdG">不错</span><span class="jd" id="jdM">错过</span></div>
+    <div id="combo" style="position:absolute;right:90px;top:52px;text-align:right">
+      <div style="font-size:24px;letter-spacing:.4em;color:var(--muted)">连击</div>
+      <div class="xw gold" id="comboN" style="font-size:120px;line-height:1;transform-origin:100% 60%">0</div>
+    </div>
+    <div id="bursts6"></div>
+  </section>
+
+  <!-- S7 end -->
+  <section class="scene" id="s7">
+    <div class="view shadow" id="v7" style="left:130px;top:220px;width:760px;height:608px"></div>
+    <div class="abs" style="left:990px;top:170px;width:820px">
+      <div class="unc red" id="s7e" style="font-size:30px;letter-spacing:.06em">HIC · IOCVLATOR · CANIT · AD · IGNEM</div>
+      <div class="xw gold" id="s7t" style="font-size:150px;line-height:1.2">林间夜曲</div>
+      <div id="s7s" style="display:flex;gap:70px;margin-top:6px">
+        <div><div class="mut" style="font-size:24px;letter-spacing:.3em">准确率</div><div class="xw" style="font-size:96px;line-height:1.1"><span id="accN">0</span><span style="font-size:52px">%</span></div></div>
+        <div><div class="mut" style="font-size:24px;letter-spacing:.3em">最高连击</div><div class="xw" style="font-size:96px;line-height:1.1"><span id="maxN">0</span></div></div>
+        <div><div class="mut" style="font-size:24px;letter-spacing:.3em">完美</div><div class="xw" style="font-size:96px;line-height:1.1"><span id="perN">0</span></div></div>
+      </div>
+      <div class="xw" id="s7l" style="font-size:42px;line-height:1.45;margin-top:26px">我把我们团的吟游诗人<br>做成了一个可以玩的<span class="red">音游</span></div>
+      <div id="s7c" style="margin-top:30px;display:flex;flex-wrap:wrap;gap:14px">
+        <span class="chip">一个 HTML 文件</span><span class="chip">电脑 · 手机都能玩</span><span class="chip">三首中世纪老歌</span><span class="chip">和弦 · 单音 · 音游</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="grain"></div>
+  <div id="wipe"><div id="wl" style="width:40px;background:var(--lime)"></div><div id="wm" style="width:2400px;background:#a33a24"></div><div id="wg" style="width:70px;background:var(--ochre)"></div></div>
+  <div id="dark"></div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, t0, d) => clamp((t - t0) / d);
+const lerp = (a, b, u) => a + (b - a) * u;
+const oC = u => 1 - Math.pow(1 - u, 3);
+const ioC = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+const oB = (u, s = 1.9) => u === 0 ? 0 : 1 + (s + 1) * Math.pow(u - 1, 3) + s * Math.pow(u - 1, 2);
+const oE = u => u >= 1 ? 1 : 1 - Math.pow(2, -10 * u);
+let M; // manifest
+const pending = [];
+
+// ---- meander bands ----
+function meander() {
+  const unit = 36; let d = '';
+  for (let x = 0; x < 1960; x += unit) d += `M${x} 21 H${x + 30} V3 H${x + 9} V15 H${x + 22} V9 H${x + 16} `;
+  return `<svg viewBox="0 0 1920 24" preserveAspectRatio="none"><path d="${d}" fill="none" stroke="#ead9b4" stroke-width="2.6"/></svg>`;
+}
+$('bandT').innerHTML = $('bandB').innerHTML = meander();
+
+// ---- char split for pop-in text ----
+function split(el) {
+  const walk = n => [...n.childNodes].forEach(c => {
+    if (c.nodeType === 3) {
+      const f = document.createDocumentFragment();
+      [...c.textContent].forEach(ch => { const s = document.createElement('span'); s.className = 'ch'; s.textContent = ch; if (ch === ' ') s.style.width = '.3em'; f.appendChild(s); });
+      c.replaceWith(f);
+    } else walk(c);
+  });
+  walk(el); el._ch = [...el.querySelectorAll('.ch')]; return el;
+}
+// mode: 'up' rise+fade, 'pop' scale-bounce, 'blur' soft fade
+function chars(el, t, t0, stg = .035, dur = .42, mode = 'up', out = null) {
+  if (!el._ch) split(el);
+  const n = el._ch.length;
+  el._ch.forEach((c, i) => {
+    const u = P(t, t0 + i * stg, dur);
+    let o = clamp(u * 1.8), tr = '';
+    if (mode === 'up') tr = `translateY(${(1 - oB(u, 1.4)) * 50}px)`;
+    if (mode === 'pop') tr = `translateY(${(1 - oC(u)) * 30}px) scale(${lerp(.3, 1, oB(u, 2.4))})`;
+    if (mode === 'blur') { tr = `translateY(${(1 - oC(u)) * 16}px)`; c.style.filter = `blur(${(1 - u) * 10}px)`; }
+    if (out) { const v = P(t, out + i * .012, .25); o *= 1 - v; tr += ` translateY(${-v * 30}px)`; }
+    c.style.opacity = o; c.style.transform = tr;
+  });
+}
+function fadeIn(el, t, t0, d = .4, dy = 30, out = null, outD = .25) {
+  const u = oB(P(t, t0, d), 1.3); let o = clamp(P(t, t0, d) * 1.6);
+  let y = (1 - u) * dy;
+  if (out !== null) { const v = P(t, out, outD); o *= 1 - v; y -= oC(v) * 20; }
+  el.style.opacity = o; el.style.transform = `translateY(${y}px)`;
+}
+function slideIn(el, t, t0, d = .45, dx = -80, out = null) {
+  const u = oB(P(t, t0, d), 1.5); let o = clamp(P(t, t0, d) * 2);
+  let x = (1 - u) * dx;
+  if (out !== null) { const v = P(t, out, .22); o *= 1 - v; x += ioC(v) * -40; }
+  el.style.opacity = o; el.style.transform = `translateX(${x}px)`;
+}
+
+// ---- footage views ----
+const views = {};
+function view(id) {
+  if (views[id]) return views[id];
+  const el = $(id), a = new Image(), b = new Image();
+  el.append(a, b);
+  return views[id] = { el, a, b };
+}
+function frameOf(reg, v) {
+  const f = reg.frames; let lo = 0, hi = f.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (f[m] < v - 1e-3) lo = m + 1; else hi = m; }
+  if (lo > 0 && Math.abs(f[lo - 1] - v) < Math.abs(f[lo] - v)) lo--;
+  return reg.dir + f[lo].toFixed(4) + '.jpg';
+}
+// the sharpest captured region of this run that covers the crop; otherwise the widest one
+function pick(run, crop, W, H) {
+  const h = crop.w * H / W, x0 = crop.x - crop.w / 2, y0 = crop.y - h / 2;
+  const regs = Object.values(M.runs[run].regions);
+  const fit = regs.filter(r => x0 >= r.x - 1 && y0 >= r.y - 1 && x0 + crop.w <= r.x + r.w + 1 && y0 + h <= r.y + r.h + 1);
+  return (fit.length ? fit : regs).sort((a, b) => fit.length ? b.sc - a.sc : b.w - a.w)[0];
+}
+const trT = (name, t) => { const r = M.tracks[name]; return { clip: r.clip, ct: r.t0 + (t - r.out) }; };
+function place(img, tr, crop, W, H, op = 1) {
+  const reg = pick(tr.clip, crop, W, H), src = frameOf(reg, tr.ct);
+  if (img._src !== src) { img._src = src; img.src = 'file://' + src; pending.push(img.decode().catch(() => {})); }
+  const s = W / crop.w, x0 = crop.x - crop.w / 2, y0 = crop.y - crop.w * H / W / 2;
+  img.style.width = reg.w * s + 'px';
+  img.style.transform = `translate(${-(x0 - reg.x) * s}px,${-(y0 - reg.y) * s}px)`;
+  img.style.opacity = op;
+}
+// show track(s) in a view; second track crossfades over the first
+function show(id, W, H, crop, tA, tB = null, mixB = 0) {
+  const v = view(id);
+  v.a.style.display = ''; place(v.a, tA, crop, W, H);
+  if (tB && mixB > 0) { v.b.style.display = ''; place(v.b, tB, crop, W, H, mixB); }
+  else v.b.style.display = 'none';
+}
+const cropLerp = (c0, c1, u) => ({ x: lerp(c0.x, c1.x, u), y: lerp(c0.y, c1.y, u), w: lerp(c0.w, c1.w, u) });
+const FRESCO = { x: 640, y: 404, w: 968 };
+const setBox = (el, x, y, w, h) => Object.assign(el.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+
+// ---- scenes ----
+const S = [
+  ['s1', 0, 3.2], ['s2', 3.2, 6.6], ['s3', 6.6, 13.0], ['s4', 13.0, 21.0], ['s5', 21.0, 27.0], ['s6', 27.0, 38.0], ['s7', 38.0, 43.1]
+];
+const WIPES = [6.6, 13.0, 21.0, 27.0, 38.0];
+const FIRE0 = { x: 812, y: 548, w: 600 }, FIRE1 = { x: 800, y: 545, w: 500 };
+
+function s1(t) {
+  const u = P(t, 0, 3.2);
+  show('v1', 1920, 1080, cropLerp(FIRE0, FIRE1, ioC(u) * .9 + u * .1), trT('idle', t));
+  $('s1shade').style.opacity = 1;
+  $('v1').style.filter = `brightness(${lerp(.0, 1, oC(P(t, 0, 1.3)))})`;
+  chars($('s1a'), t, .45, .06, .5, 'blur');
+  chars($('s1b'), t, 1.25, .07, .5, 'blur');
+  fadeIn($('s1c'), t, 2.1, .6, 10);
+}
+function s2(t) {
+  // pull out from the fire close-up to the whole fresco on the right
+  const u = oE(P(t, 3.2, .75));
+  const bx = lerp(0, 1010, u), by = lerp(0, 236, u), bw = lerp(1920, 780, u), bh = lerp(1080, 624, u);
+  const v = $('v2'); setBox(v, bx, by, bw, bh);
+  const crop = cropLerp(FIRE1, FRESCO, u); crop.w = crop.w; // aspect follows the box
+  const cw = lerp(FIRE1.w, FRESCO.w, u);
+  show('v2', bw, bh, { x: crop.x, y: crop.y, w: cw }, trT('sting', t));
+  v.style.transform = `rotate(${lerp(0, -1.2, u)}deg)`;
+  chars($('s2e'), t, 3.55, .012, .35, 'up');
+  chars($('s2a'), t, 3.6, .045, .4, 'up');
+  chars($('s2b'), t, 3.85, .08, .5, 'pop');
+  $('s2rule').style.width = 560 * oC(P(t, 4.3, .5)) + 'px';
+  chars($('s2c'), t, 4.4, .045, .4, 'up');
+}
+const SHOTS = [
+  [6.6, 8.2, { x: 590, y: 210, w: 470 }, { x: 575, y: 200, w: 400 }, 'p3a'],
+  [8.2, 9.8, { x: 560, y: 440, w: 660 }, { x: 600, y: 430, w: 560 }, 'p3b'],
+  [9.8, 11.4, { x: 400, y: 200, w: 620 }, { x: 340, y: 150, w: 470 }, 'p3c'],
+  [11.4, 13.0, { x: 640, y: 573, w: 800 }, { x: 640, y: 580, w: 740 }, 'p3d'],
+];
+function s3(t) {
+  const sh = SHOTS.find(s => t < s[1]) || SHOTS[3];
+  const u = P(t, sh[0], sh[1] - sh[0]);
+  const c = cropLerp(sh[2], sh[3], u);
+  c.w *= 1 - .14 * (1 - oE(P(t, sh[0], .4)));   // punch-in on each cut
+  show('v3', 1920, 1080, c, trT('green', t));
+  slideIn($('t3'), t, 6.75, .45, -60);
+  SHOTS.forEach(s => {
+    const el = $(s[4]);
+    if (t < s[0] || t >= s[1]) { el.style.opacity = 0; return; }
+    slideIn(el, t, s[0] + .12, .45, -90, s[1] - .25);
+    el.querySelectorAll('.sw span').forEach((sp, i) => { const k = oB(P(t, s[0] + .45 + i * .09, .35), 2.2); sp.style.transform = `scale(${k})`; });
+  });
+}
+const CARDS = [[13.0, 15.5, 'green'], [15.5, 18.2, 'scar'], [18.2, 21.2, 'tempus']];
+function s4(t) {
+  const i = CARDS.findIndex(c => t < c[1]); const k = i < 0 ? 2 : i;
+  const cur = CARDS[k], prev = CARDS[k - 1];
+  const x = oC(P(t, cur[0], .3));
+  const punch = 1 - .06 * (1 - oE(P(t, cur[0], .5)));
+  const crop = { x: 640, y: 404, w: 968 * (k ? punch : 1) };
+  show('v4', 1000, 800, crop, prev && x < 1 ? trT(prev[2], t) : trT(cur[2], t), prev && x < 1 ? trT(cur[2], t) : null, x);
+  slideIn($('t4'), t, 13.1, .4, 60);
+  chars($('s4h'), t, 13.15, .035, .4, 'up');
+  ['c1', 'c2', 'c3'].forEach((id, j) => {
+    const el = $(id), on = j === k;
+    el.classList.toggle('on', on);
+    const a = oB(P(t, 13.3 + j * .09, .45), 1.5);
+    const sc = on ? lerp(1, 1.05, oB(P(t, CARDS[j][0], .35), 2.5)) : 1;
+    el.style.opacity = clamp(P(t, 13.3 + j * .09, .3) * 2) * (on ? 1 : .8);
+    el.style.transform = `translateX(${(1 - a) * 120 + (on ? -18 : 0) * oC(P(t, CARDS[j][0], .3))}px) scale(${sc})`;
+    const eq = el.querySelector('.eq');
+    if (!eq.children.length) for (let q = 0; q < 5; q++) eq.appendChild(document.createElement('span'));
+    [...eq.children].forEach((b, q) => b.style.height = on ? (12 + 44 * Math.abs(Math.sin(t * (5.3 + q * 1.7) + q * 1.3))) + 'px' : '6px');
+    eq.style.opacity = on ? 1 : .0;
+  });
+  fadeIn($('s4n'), t, 14.0, .5, 20);
+}
+// keyboard presses in the pad clip (clip time relative to the 'ready' mark)
+const PADK = (() => {
+  const L = [];
+  [[0, 190, 441, '1'], [.71, 262, 441, '2'], [1.42, 334, 441, '3'], [2.13, 190, 441, '1']].forEach(([d, x, y, k]) => L.push({ d: d + .01, x, y: y - 10, k, chord: 1 }));
+  const W = { A: 193, S: 262, D: 331, F: 400, G: 469, H: 538, J: 607, K: 676, L: 745, ';': 814, "'": 883 };
+  const g = ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', "'"];
+  g.forEach((k, i) => L.push({ d: 3.106 + i * .113, x: W[k], y: 600, k, small: 1 }));
+  const m0 = 3.106 + 11 * .113 + .4;
+  ['H', 'K', 'L', ';', 'L', 'K', 'J', 'G'].forEach((k, i) => L.push({ d: m0 + i * .305, x: W[k], y: 600, k }));
+  return L;
+})();
+function s5(t) {
+  show('v5', 1680, 740, { x: 707.5, y: 645, w: 1135 }, trT('pad', t));
+  slideIn($('t5'), t, 21.1, .4, -60);
+  chars($('s5h'), t, 21.15, .03, .4, 'up');
+  fadeIn($('s5c1'), t, 21.4, .4, 20, 24.0);
+  fadeIn($('s5c2'), t, 24.2, .4, 20);
+  const box = $('pops5'), s = 1680 / 1135, ready = M.runs.pad.anchor, ct = trT('pad', t).ct;
+  if (!box.children.length) PADK.forEach(p => { const d = document.createElement('div'); d.className = 'keypop'; d.textContent = p.k; box.appendChild(d); });
+  PADK.forEach((p, i) => {
+    const el = box.children[i], u = (ct - (ready + p.d)) / .55;
+    if (u < 0 || u > 1) { el.style.opacity = 0; return; }
+    const X = 120 + (p.x - 140) * s, Y = 282 + (p.y - 395) * s;
+    el.style.left = X + 'px'; el.style.top = Y + 'px';
+    el.style.opacity = u < .7 ? 1 : 1 - (u - .7) / .3;
+    el.style.transform = `translateY(${-oC(u) * (p.chord ? 28 : 70)}px) scale(${(p.small ? .8 : 1) * lerp(.4, 1, oB(clamp(u * 3), 2.5))})`;
+  });
+}
+const GAMEC = { x: 712.5, y: 677.5, w: 1125 }, GAMEZ = { x: 1000, y: 668, w: 560 };
+function s6(t) {
+  const z = oE(P(t, 30.6, .45)) * (1 - ioC(P(t, 33.2, .45)));
+  show('v6', 1760, 696, cropLerp(GAMEC, GAMEZ, z), trT('game', t));
+  slideIn($('t6'), t, 27.1, .4, -60);
+  chars($('s6h1'), t, 27.15, .035, .4, 'up', 30.45);
+  chars($('s6h2'), t, 30.6, .035, .4, 'up', 33.85);
+  chars($('s6h3'), t, 34.0, .035, .4, 'up');
+  fadeIn($('jd'), t, 27.5, .4, 20);
+  const ct = trT('game', t).ct, g = M.tracks.game;
+  const past = M.events.filter(e => e.t <= ct);
+  const last = past[past.length - 1];
+  const combo = last ? last.combo : 0;
+  const cn = $('comboN'); cn.textContent = combo;
+  const since = last ? ct - last.t : 9;
+  cn.style.transform = `scale(${1 + .28 * (1 - oC(clamp(since / .22)))})`;
+  fadeIn($('combo'), t, 27.4, .4, 20);
+  const col = { '完美': ['jdP', 'var(--ochre)', 'var(--wall)'], '不错': ['jdG', '#e9c98a', 'var(--wall)'], '错过': ['jdM', '#8a7a6c', 'var(--wall)'] };
+  ['jdP', 'jdG', 'jdM'].forEach(id => { const e = $(id); e.style.background = 'transparent'; e.style.color = 'var(--rule)'; e.style.borderColor = 'var(--rule)'; e.style.transform = ''; });
+  if (last && since < .3) { const [id, bg, fg] = col[last.fb]; const e = $(id); const k = 1 - since / .3; e.style.background = bg; e.style.color = fg; e.style.borderColor = bg; e.style.transform = `scale(${1 + .15 * k})`; }
+  // gilt burst around the counter every ten in a row
+  const box = $('bursts6');
+  if (!box.children.length) M.events.filter(e => e.combo && e.combo % 10 === 0).forEach(e => {
+    const d = document.createElement('div'); d.className = 'burst'; d._t = e.t;
+    d.innerHTML = '<div class="ring"></div>' + Array.from({ length: 12 }, () => '<i></i>').join(''); box.appendChild(d);
+  });
+  [...box.children].forEach(d => {
+    const u = (ct - d._t) / .8;
+    if (u < 0 || u > 1) { d.style.display = 'none'; return; }
+    d.style.display = ''; d.style.left = '1760px'; d.style.top = '170px';
+    const r = d.firstChild, R = 40 + oC(u) * 150;
+    Object.assign(r.style, { left: -R + 'px', top: -R + 'px', width: 2 * R + 'px', height: 2 * R + 'px', opacity: 1 - u });
+    [...d.querySelectorAll('i')].forEach((q, j) => {
+      const a = j / 12 * Math.PI * 2 + .3, D = 30 + oC(u) * (140 + (j % 3) * 50);
+      q.style.transform = `translate(${Math.cos(a) * D}px,${Math.sin(a) * D + u * u * 60}px) rotate(${u * 200 + j * 30}deg) scale(${1 - u * .6})`;
+      q.style.opacity = 1 - u * u;
+      q.style.background = j % 4 === 0 ? 'var(--sinopia)' : 'var(--ochre)';
+    });
+  });
+}
+function s7(t) {
+  const u = oB(P(t, 38.05, .6), 1.2);
+  const v = $('v7'); v.style.opacity = clamp(P(t, 38.05, .3) * 2); v.style.transform = `scale(${lerp(.86, 1, u)}) rotate(${lerp(3, -1.2, u)}deg)`;
+  show('v7', 760, 608, FRESCO, trT('idle2', t));
+  chars($('s7e'), t, 38.2, .012, .35, 'up');
+  chars($('s7t'), t, 38.3, .09, .5, 'pop');
+  fadeIn($('s7s'), t, 38.8, .45, 30);
+  const c = oC(P(t, 38.9, 1.1));
+  $('accN').textContent = Math.round(96 * c); $('maxN').textContent = Math.round(72 * c); $('perN').textContent = Math.round(65 * c);
+  chars($('s7l'), t, 39.5, .03, .4, 'up');
+  [...$('s7c').children].forEach((el, i) => fadeIn(el, t, 40.2 + i * .1, .4, 24));
+}
+const FN = { s1, s2, s3, s4, s5, s6, s7 };
+
+function bands(t) {
+  const u = oE(P(t, 3.2, .6));
+  ['bandT', 'bandB'].forEach(id => { const b = $(id); b.style.transform = `scaleX(${u})`; b.style.opacity = t < 3.2 ? 0 : 1; });
+}
+function wipe(t) {
+  const T = WIPES.find(T => Math.abs(t - T) < .32);
+  const w = $('wipe');
+  if (T === undefined) { w.style.display = 'none'; return; }
+  w.style.display = '';
+  const u = ioC(clamp((t - (T - .3)) / .6));
+  const x = lerp(-2700, 2220, u);
+  $('wm').style.left = (x - 240) + 'px';
+  $('wg').style.left = (x + 2160 + 10) + 'px';
+  $('wl').style.left = (x - 240 - 70) + 'px';
+}
+
+window.render = async t => {
+  pending.length = 0;
+  S.forEach(([id, a, b]) => { const on = t >= a && t < b; const el = $(id); el.style.display = on ? 'block' : 'none'; if (on) FN[id](t); });
+  bands(t); wipe(t);
+  $('dark').style.opacity = .9 * ioC(P(t, 42.2, .8));
+  await Promise.all(pending);
+};
+window.init = async m => { M = m; await document.fonts.load('70px XW', '吟游诗人'); await document.fonts.load('30px Uncial', 'hic'); await document.fonts.load('500 30px NS', '石灰'); await document.fonts.load('700 30px NS', '1'); await document.fonts.ready; };
+</script>
