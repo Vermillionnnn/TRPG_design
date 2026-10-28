@@ -25,7 +25,7 @@
 | [`flower_bed`](flower_bed.py) | <img src="flower_bed.png" width="120"> | 石砌花坛：石边、黑土、一片花 | `width` `depth` `colors` `count` `rng` | （the Shadow 据点） |
 | [`flower_patch`](flower_patch.py) | <img src="flower_patch.png" width="120"> | 一片散花（叶丛、花茎、花朵带花心），全部合并成少量网格 | `rx` `ry` `count` `colors` `size` `rng` | （the Shadow 据点） |
 | [`fountain`](fountain.py) | <img src="fountain.png" width="120"> | 罗马式双层石喷泉：线脚边沿的水池、车削柱子托两层水盘、水帘，可加浮空法球和池壁符文 | `radius` `magic` `glow` | （the Shadow 据点） |
-| [`gem_rapier`](gem_rapier.py) | <img src="gem_rapier.png" width="120"> | 宝石刺剑：六棱柱的透明水晶剑身，收窄约三分之一、末端三角尖收尾，只靠刻面反光（薄膜干涉、色散），花瓶加菱形的水晶剑根立在薄金环上；对称的厚重金护手（窄平顶外鼓到锋利圆边，下半直接收进握柄）；顶端缠线、下段刻纵向凹槽、上粗下细的金柄；扁金带护指弓接着护手弧线伸出，收回后在握柄下段加宽并与握柄相连，再卷成小圈；剑首是嵌蓝宝石腰带的竖槽梨形金球，下接金爪笼住的水晶坠 | `length` `width` `blade` `hilt` `light` | （武器陈列） |
+| [`gem_rapier`](gem_rapier.py) | <img src="gem_rapier.png" width="240"> | 宝石刺剑（[旋转动画](gem_rapier.gif)）：六棱柱的透明水晶剑身，收窄约三分之一、末端三角尖收尾，只靠刻面反光（薄膜干涉、色散），花瓶加菱形的水晶剑根立在薄金环上；对称的厚重金护手（窄平顶外鼓到锋利圆边，下半直接收进握柄）；顶端缠线、下段刻纵向凹槽、上粗下细的金柄；扁金带护指弓接着护手弧线伸出，收回后在握柄下段加宽并与握柄相连，再卷成小圈；剑首是嵌蓝宝石腰带的竖槽梨形金球，下接金爪笼住的水晶坠 | `length` `width` `blade` `hilt` `light` | （武器陈列） |
 | [`great_fireplace`](great_fireplace.py) | <img src="great_fireplace.png" width="120"> | 大石壁炉：烟熏石与玄武岩、平拱拱心石、线脚壁炉台和托架、烟囱墙腰线 | `chimney_top` `fire` `rng` | （黑杖塔办事处） |
 | [`high_back_chair`](high_back_chair.py) | <img src="high_back_chair.png" width="120"> | 雕花高背椅：车削腿和顶饰、拉扣靠垫、卷头扶手、尖顶板和宝石 | `back_height` `wood` `cushion` `gem` `tufts` | （黑杖塔办事处） |
 | [`hourglass`](hourglass.py) | <img src="hourglass.png" width="120"> | 沙漏 | `height` `wood` | （黑杖塔办事处） |
@@ -33,7 +33,7 @@
 | [`lancet_window`](lancet_window.py) | <img src="lancet_window.png" width="120"> | 圆头窗：菱格铅条、木窗框、玄武岩窗套、石窗台、星空，可带月光和光束 | `width` `height` `sill` `light` `rng` | （黑杖塔办事处） |
 | [`lamp_post`](lamp_post.py) | <img src="lamp_post.png" width="120"> | 铁艺路灯：石座、车削灯柱和尖顶，弯钩灯臂带涡卷，挂一到两盏提灯 | `height` `arms` `glow` `color` `energy` | （the Shadow 据点） |
 | [`lantern`](lantern.py) | <img src="lantern.png" width="120"> | 方形铁提灯，发光灯芯和暖色点光源 | `energy` `color` `glow` | （the Shadow 据点） |
-| [`magic_lute`](magic_lute.py) | <img src="magic_lute.png" width="120"> | 魔法鲁特琴：深浅交替的梨形琴背、云杉面板金镶边、发光符文音孔、金品丝、后折琴头和琴轸、蓝水晶、发光琴弦和飘浮音符 | `body` `width` `glow` `staves` `notes` `light` | （武器陈列） |
+| [`magic_lute`](magic_lute.py) | （待生成） | 魔法鲁特琴：深浅交替的梨形琴背、云杉面板金镶边、发光符文音孔、金品丝、后折琴头和琴轸、蓝水晶、发光琴弦和飘浮音符 | `body` `width` `glow` `staves` `notes` `light` | （武器陈列） |
 | [`map_table`](map_table.py) | <img src="map_table.png" width="120"> | 三脚圆桌，钉着城市地图，上方浮着发光的城市幻影 | `radius` `height` `wood` `illusion` `glow` `rng` | （黑杖塔办事处） |
 | [`miniature`](miniature.py) | <img src="miniature.png" width="120"> | 桌游棋子 | `color` | 地图上四个 |
 | [`mortar`](mortar.py) | <img src="mortar.png" width="120"> | 石研钵和杵 | `radius` | 书桌上 |
@@ -56,7 +56,7 @@
 | [`training_dummy`](training_dummy.py) | <img src="training_dummy.png" width="120"> | 稻草训练假人：麻布身子和头、十字桩、胸口画的靶心 | `mark` | — |
 | [`tree`](tree.py) | <img src="tree.png" width="120"> | 树：阔叶树（几团起伏的树冠，可加果子、可更粗糙）或三层松树 | `kind` `height` `crown` `leaf` `clumps` `lumpy` `fruit` `rng` | （the Shadow 据点） |
 | [`vial_rack`](vial_rack.py) | <img src="vial_rack.png" width="120"> | 试管架和一排发光试管 | `colors` | 书桌上 |
-| [`vine_staff`](vine_staff.py) | <img src="vine_staff.png" width="120"> | 藤蔓法杖：带树瘤的深色木杖，发光蓝水晶嵌在杖顶木杯里，卷须远远环绕；三条粗细、颜色、叶量不同的藤蔓，点缀发光花苞 | `length` `radius` `wood` `vine` `leaf` `crystal_color` `tendrils` `blooms` `light` `rng` | （武器陈列） |
+| [`vine_staff`](vine_staff.py) | （待生成） | 藤蔓法杖：带树瘤的深色木杖，发光蓝水晶嵌在杖顶木杯里，卷须远远环绕；三条粗细、颜色、叶量不同的藤蔓，点缀发光花苞 | `length` `radius` `wood` `vine` `leaf` `crystal_color` `tendrils` `blooms` `light` `rng` | （武器陈列） |
 | [`weapon_rack`](weapon_rack.py) | <img src="weapon_rack.png" width="120"> | 武器架（不含武器） | `width` | 后墙 |
 | [`wheel_chandelier`](wheel_chandelier.py) | <img src="wheel_chandelier.png" width="120"> | 铁环蜡烛吊灯：轮辐、烛杯、三根吊链（原点在挂钩） | `radius` `candles` `drop` `light` | （黑杖塔办事处） |
 | [`window`](window.py) | <img src="window.png" width="120"> | 窗户：发光玻璃、十字框、窗台、月光 | `width` `height` `light` | 后墙 |
@@ -112,6 +112,8 @@ scenes/blender.sh scenes/assets/thumbnail.py chair --set seat_height=0.7 --set s
 ```
 
 参数：`--out 路径`、`--samples N`（默认 64）、`--size 像素`（默认 384，正方形）、`--set 参数=值`（可重复，值按 Python 字面量解析，如 `--set "cushion=(0.2,0.05,0.35)"`）。默认设置一张约 5 秒，全部约 2 分钟。在 VM 的 Mac 沙箱里照常加 `BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender` 前缀。
+
+例外：`gem_rapier.png` 和 `gem_rapier.gif` 不是 `thumbnail.py` 生成的，而是从刺剑的展示场景 [`scenes/weapons/rapier_scene.py`](../weapons/rapier_scene.py) 来的（整剑渲染图裁成 3:1 再缩小，旋转动画按那里 README 的命令生成），因为 2.3 米长的细剑在方形缩略图里几乎看不见。`thumbnail.py all` 会跳过它（`thumbnail.py` 里的 `OWN_THUMBNAIL`），单独跑 `thumbnail.py gem_rapier` 仍可预览方形缩略图，记得加 `--out` 别覆盖正式的。
 
 ## 新增一个素材
 

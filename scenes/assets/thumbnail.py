@@ -23,11 +23,12 @@ from assets.lib import mat, reset  # noqa: E402
 
 ASSETS = os.path.join(SCENES, "assets")
 NOT_ASSETS = {"__init__", "lib", "thumbnail"}
+OWN_THUMBNAIL = {"gem_rapier"}       # thumbnail comes from the asset's showcase scene; "all" skips it
 
 
 def asset_names():
     return sorted(f[:-3] for f in os.listdir(ASSETS)
-                  if f.endswith(".py") and f[:-3] not in NOT_ASSETS)
+                  if f.endswith(".py") and f[:-3] not in NOT_ASSETS | OWN_THUMBNAIL)
 
 
 def bounds(root):

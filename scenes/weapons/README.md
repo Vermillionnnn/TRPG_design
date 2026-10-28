@@ -1,13 +1,10 @@
 # 武器陈列
 
-三件武器的 Blender 模型，摆在深色展台上的陈列场景。三件武器都做成了 [`scenes/assets/`](../assets/) 里的素材，其他场景可以直接 `import`。
+三件武器的 Blender 模型：宝石刺剑、藤蔓法杖、魔法鲁特琴。三件都做成了 [`scenes/assets/`](../assets/) 里的素材，其他场景可以直接 `import`。刺剑已经定稿，有单独的展示场景；法杖和鲁特琴还在改，三件合影的成品图等它们改完再出。
 
-![三件武器](weapons_all.png)
+![宝石刺剑](rapier_full.png)
 
-| 特写 | | |
-| --- | --- | --- |
-| <img src="weapons_rapier.png" width="260"> | <img src="weapons_staff.png" width="260"> | <img src="weapons_lute.png" width="260"> |
-| 宝石刺剑 `gem_rapier` | 藤蔓法杖 `vine_staff` | 魔法鲁特琴 `magic_lute` |
+刺剑的旋转动画和缩略图按素材的方式和代码放在一起：[`gem_rapier.gif`](../assets/gem_rapier.gif)、[`gem_rapier.png`](../assets/gem_rapier.png)。
 
 ## 三件武器
 
@@ -51,9 +48,11 @@ scenes/blender.sh scenes/weapons/rapier_scene.py --render out/rapier.png --shot 
 - `--anim 帧目录 [--frames N]`：渲染旋转动画帧：剑绕自己的长轴（水平的剑身中线）转一圈，分成 N 个定格姿势（默认 96，每帧转 3.75°），按 8 fps 播放，默认一圈 12 秒，首尾相接循环。灯光和镜头不动。合成 GIF：
 
   ```bash
-  scenes/blender.sh scenes/weapons/rapier_scene.py --anim out/rapier_spin --shot full --res 50 --samples 64
-  scenes/blender.sh scenes/tools/frames_to_gif.py out/rapier_spin out/rapier_spin.gif --fps 8
+  scenes/blender.sh scenes/weapons/rapier_scene.py --anim out/rapier_spin --shot full --res 25 --samples 16
+  scenes/blender.sh scenes/tools/frames_to_gif.py out/rapier_spin scenes/assets/gem_rapier.gif --fps 8
   ```
+
+  素材库里的 `gem_rapier.gif` 就是这样生成的（600×250，96 帧）。
 - `--samples`、`--res`、`--save` 同上
 
 在其他场景里使用：
@@ -71,11 +70,7 @@ magic_lute.build("Lute", loc=(2, 0, 0), notes=0, glow=(1.0, 0.6, 0.2))   # 不�
 
 | 文件 | 说明 |
 | --- | --- |
-| `build_scene.py` | 陈列场景：圆形石台、深蓝渐变背景、三盏面光，武器从素材库引用 |
+| `build_scene.py` | 三件合影的陈列场景：圆形石台、深蓝渐变背景、三盏面光，武器从素材库引用（成品图待法杖和鲁特琴改完再出） |
 | `rapier_scene.py` | 刺剑单独横放展示：酒红色背景、暖色长条柔光箱打光，可用 `--length` 试不同长度 |
 | `rapier_full.png` | 刺剑整把剑（`--shot full --res 150`，3600×1500，128 采样） |
 | `rapier_hilt_sketch.svg` | 刺剑剑柄正视示意图（毫米），建模时的尺寸依据；剑首后来重新设计，以模型为准 |
-| `weapons_all.png` | 三件合影（1600×1200，128 采样） |
-| `weapons_rapier.png` | 刺剑护手特写（1000×1200） |
-| `weapons_staff.png` | 法杖杖头特写（1000×1200） |
-| `weapons_lute.png` | 鲁特琴（1000×1200） |
