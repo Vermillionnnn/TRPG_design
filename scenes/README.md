@@ -7,6 +7,7 @@
 | [`homebase/`](homebase/) | 法师小队的据点，剖面小房间 |
 | [`blackstaff-office/`](blackstaff-office/) | 深水城黑杖塔办事处，剖面内景 |
 | [`shadow-base/`](shadow-base/) | the Shadow 小队在深水城的据点，外景沙盘 |
+| [`weapons/`](weapons/) | 武器陈列：宝石刺剑、藤蔓法杖、魔法鲁特琴 |
 | [`assets/`](assets/) | 素材库：可复用、带参数的单个物件（一份代码 + 一张缩略图），场景脚本直接引用 |
 | [`tools/`](tools/) | 辅助脚本：`frames_to_gif.py` 把渲染帧合成循环 GIF（在 Blender 里跑，不需要 ffmpeg） |
 

@@ -271,8 +271,9 @@ def blob(name, r, loc, material, squash=1.0, strength=0.3, noise=0.3, subdiv=3):
     return assign(o, material)
 
 
-def curve(name, pts, r, material, taper=1.0):
-    """Smooth NURBS tube through pts; the radius shrinks linearly to r * taper at the end."""
+def curve(name, pts, r, material, taper=1.0, cyclic=False):
+    """Smooth NURBS tube through pts; the radius shrinks linearly to r * taper at the end.
+    cyclic closes it into a loop (taper is then ignored at the seam)."""
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "3D"
     cu.bevel_depth = r
@@ -284,7 +285,8 @@ def curve(name, pts, r, material, taper=1.0):
         p.co = (*c, 1.0)
         p.radius = 1.0 + (taper - 1.0) * i / max(1, len(pts) - 1)
     sp.order_u = min(4, len(pts))
-    sp.use_endpoint_u = True
+    sp.use_cyclic_u = cyclic
+    sp.use_endpoint_u = not cyclic
     sp.resolution_u = 8
     o = bpy.data.objects.new(name, cu)
     bpy.context.collection.objects.link(o)

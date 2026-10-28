@@ -24,6 +24,7 @@
 - [`scenes/assets/`](scenes/assets/)：Blender 素材库，每个素材一段带参数的代码加一张缩略图
 - [`scenes/blackstaff-office/`](scenes/blackstaff-office/)：深水城黑杖塔办事处内景，Blender 剖面场景
 - [`scenes/shadow-base/`](scenes/shadow-base/)：the Shadow 小队在深水城的据点外景沙盘（木屋大厅、五人宿舍、篝火院子、葡萄架露台、魔法喷泉）
+- [`scenes/weapons/`](scenes/weapons/)：三件武器的模型与陈列图（宝石刺剑、藤蔓法杖、魔法鲁特琴）
 - [`html/bard-lute/`](html/bard-lute/)：《林间夜曲》，吟游诗人弹鲁特琴的小网页；宣传短片的生成脚本在 [`video/`](html/bard-lute/video/)
 - [`html/scribe-scroll/`](html/scribe-scroll/)：《烛堡抄卷》，法师希娜在烛堡书库抄写法术卷轴的打字小游戏
 - [`plots/hina-lumi/`](plots/hina-lumi/)：希娜·露弥（Hina Lumi）的立绘与绘制过程（工具、提示词、迭代）
