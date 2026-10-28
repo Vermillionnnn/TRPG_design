@@ -1,7 +1,7 @@
 """Slender rapier with a clear crystal blade full of coloured sparks and a gilded hilt,
 after the designer's reference art: the blade rises from a faceted vase-and-lozenge
 crystal set in a thin gold ring on a heavy guard shaped like two stacked frustums (a
-narrow flat top widening down to a sharp rim drawn to a point at the back, then
+narrow flat top widening down to a sharp round rim, then
 narrowing again into a ringed neck); the knuckle bow is a flat band carrying the
 guard's top face out and down, ending in a curl; the grip is gently spindle-shaped, fullest near its top; the pommel is
 a faceted gold arrowhead.
@@ -107,19 +107,14 @@ def band(name, pts, half_breadth, half_thick, material, res=10, ring=16):
     return mesh_obj(name, verts, faces, material, smooth_angle=70)
 
 
-def bell_guard(name, profile, point, reach, material, segs=96):
+def bell_guard(name, profile, material, segs=96):
     """Turned guard from a (radius, z) profile listed from the neck outward and up to the
-    top centre; the widest part is drawn out toward -x into a point (`point` = extra length
-    at the tip, as a fraction; only radii beyond `reach` are stretched)."""
+    top centre, open at the neck end."""
     n = len(profile)
-    rmax = max(r for r, _ in profile)
     verts, faces = [], []
     for i in range(segs):
         a = 2 * math.pi * i / segs
-        pull = point * max(0.0, -math.cos(a)) ** 10
-        for r, z in profile:
-            k = 1 + pull * max(0.0, (r - reach) / (rmax - reach)) ** 1.5
-            verts.append((r * k * math.cos(a), r * k * math.sin(a), z))
+        verts += [(r * math.cos(a), r * math.sin(a), z) for r, z in profile]
     for i in range(segs):
         j = (i + 1) % segs
         for p in range(n - 1):
@@ -166,12 +161,12 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
                                        (0.0, g)], (0, 0, 0), hilt, segs=32))
 
     # guard: two frustums base to base. The upper one widens from a narrow flat top down to a
-    # sharp rim (drawn to a point at the back); the lower one narrows from the rim to a ringed neck.
+    # sharp round rim, symmetric all round; the lower one narrows from the rim to a ringed neck.
     neck1 = guard - 0.041
     parts.append(bell_guard(name + "Guard", [
         (0.015, neck1), (0.02, guard - 0.036), (0.06, guard - 0.021), (0.066, guard - 0.0185),
         (0.068, guard - 0.017), (0.066, guard - 0.0155), (0.047, guard - 0.0015), (0.045, guard),
-        (0.0, guard)], 0.4, 0.04, hilt))
+        (0.0, guard)], hilt))
     parts.append(lathe(name + "Neck", [(0.0, grip_top), (0.0152, grip_top), (0.0135, grip_top + 0.006),
                                        (0.0128, neck1 - 0.004), (0.0152, neck1 + 0.001), (0.0, neck1 + 0.001)],
                        (0, 0, 0), hilt, segs=32))
