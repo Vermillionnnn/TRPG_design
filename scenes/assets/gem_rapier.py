@@ -1,9 +1,10 @@
-"""Slender rapier with a clear crystal blade lit from within and a gilded hilt, after
-the designer's reference art: the blade rises from a faceted vase-and-lozenge crystal
-set in a thin gold ring on a heavy bell-shaped guard (bevelled rim, drawn to a point
-at the back, its underside sloping down into a ringed neck); the knuckle bow runs
-from the guard's front rim and ends in a curl; the grip is gently spindle-shaped,
-fullest just under the guard; the pommel is a faceted gold arrowhead.
+"""Slender rapier with a clear crystal blade full of coloured sparks and a gilded hilt,
+after the designer's reference art: the blade rises from a faceted vase-and-lozenge
+crystal set in a thin gold ring on a heavy guard shaped like two stacked frustums (a
+narrow flat top widening down to a sharp rim drawn to a point at the back, then
+narrowing again into a ringed neck); the knuckle bow runs from the guard's front and
+ends in a curl; the grip is gently spindle-shaped, fullest near its top; the pommel is
+a faceted gold arrowhead.
 
     r = gem_rapier.build("Rapier", loc=(0, 0, 1.25))
     r.rotation_euler = (math.radians(180), 0, 0)   # point down, e.g. hung on a wall
@@ -11,10 +12,11 @@ fullest just under the guard; the pommel is a faceted gold arrowhead.
 Origin is at the pommel tip; the blade points up along local +z, flat side facing -y.
 """
 import math
+import random
 
 import bpy
 
-from assets.lib import as_material, curve, group, lathe, mat, mesh_obj, point_light, torus
+from assets.lib import Batch, as_material, curve, group, lathe, mat, mesh_obj, point_light, torus
 
 
 def glass_mat(name, tint):
@@ -32,39 +34,6 @@ def glass_mat(name, tint):
     for key, value in (("Thin Film Thickness", 400.0), ("Thin Film IOR", 1.4), ("Dispersion", 0.5)):
         if key in inputs:
             inputs[key].default_value = value
-    return m
-
-
-def core_mat(name, colors, strength):
-    """Pure emission for the glowing core, its colour drifting along the blade through `colors`."""
-    m = bpy.data.materials.get(name)
-    if m:
-        return m
-    m = bpy.data.materials.new(name)
-    m.use_nodes = True
-    nt = m.node_tree
-    nt.nodes.remove(nt.nodes["Principled BSDF"])
-    em = nt.nodes.new("ShaderNodeEmission")
-    em.inputs["Strength"].default_value = strength
-    tc = nt.nodes.new("ShaderNodeTexCoord")
-    mp = nt.nodes.new("ShaderNodeMapping")
-    mp.inputs["Scale"].default_value = (1, 1, 1.4)          # about one colour cycle along the blade
-    wave = nt.nodes.new("ShaderNodeTexWave")
-    wave.wave_profile = "SIN"
-    wave.bands_direction = "Z"
-    wave.inputs["Scale"].default_value = 1.0
-    wave.inputs["Distortion"].default_value = 2.0
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    cr = ramp.color_ramp
-    cr.elements[0].color = (*colors[0], 1)
-    cr.elements[1].color = (*colors[-1], 1)
-    for k, c in enumerate(colors[1:-1], 1):
-        cr.elements.new(k / (len(colors) - 1)).color = (*c, 1)
-    nt.links.new(tc.outputs["Object"], mp.inputs["Vector"])
-    nt.links.new(mp.outputs["Vector"], wave.inputs["Vector"])
-    nt.links.new(wave.outputs["Fac"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], em.inputs["Color"])
-    nt.links.new(em.outputs["Emission"], nt.nodes["Material Output"].inputs["Surface"])
     return m
 
 
@@ -94,26 +63,33 @@ def prism(name, sections, material, tip=None, bottom=None):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def crystal(name, sections, tip, glass, core, inset=0.45):
-    """A clear faceted prism with a smaller glowing copy of itself inside."""
-    outer = prism(name, sections, glass, tip=tip)
-    z0 = sections[0][0]
-    inner = prism(name + "Core", [(z + (0.004 if i == 0 else 0), w * inset, t * inset)
-                                  for i, (z, w, t) in enumerate(sections)], core, tip=tip - (tip - z0) * 0.03)
-    return [outer, inner]
+def sparks(batch, sections, tip, materials, count, size, rng):
+    """Scatter `count` tiny glowing balls inside a prism given as for prism()."""
+    pts = sections + [(tip, 0.0, 0.0)]
+    z0, z1 = pts[0][0], tip
+    for _ in range(count):
+        z = rng.uniform(z0, z1 - (z1 - z0) * 0.04)
+        for (za, wa, ta), (zb, wb, tb) in zip(pts, pts[1:]):
+            if za <= z <= zb:
+                f = (z - za) / (zb - za)
+                w, t = wa + (wb - wa) * f, ta + (tb - ta) * f
+                break
+        x, y = rng.uniform(-0.7, 0.7) * w, rng.uniform(-0.55, 0.55) * t
+        batch.ball(rng.choice(materials), size * rng.uniform(0.5, 1.2), (x, y, z))
 
 
 def bell_guard(name, profile, point, reach, material, segs=96):
     """Turned guard from a (radius, z) profile listed from the neck outward and up to the
-    top centre; the rim is drawn out toward -x into a point (`point` = extra length at the
-    tip, as a fraction; only radii beyond `reach` are stretched)."""
+    top centre; the widest part is drawn out toward -x into a point (`point` = extra length
+    at the tip, as a fraction; only radii beyond `reach` are stretched)."""
     n = len(profile)
+    rmax = max(r for r, _ in profile)
     verts, faces = [], []
     for i in range(segs):
         a = 2 * math.pi * i / segs
         pull = point * max(0.0, -math.cos(a)) ** 10
         for r, z in profile:
-            k = 1 + pull * max(0.0, (r - reach) / (profile_max(profile) - reach)) ** 1.5
+            k = 1 + pull * max(0.0, (r - reach) / (rmax - reach)) ** 1.5
             verts.append((r * k * math.cos(a), r * k * math.sin(a), z))
     for i in range(segs):
         j = (i + 1) % segs
@@ -123,21 +99,18 @@ def bell_guard(name, profile, point, reach, material, segs=96):
     return mesh_obj(name, verts, faces, material, smooth_angle=30)
 
 
-def profile_max(profile):
-    return max(r for r, _ in profile)
-
-
 def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, blade=(0.95, 0.97, 1.0),
-          glow=((0.45, 0.8, 1.0), (0.75, 0.6, 1.0), (1.0, 0.6, 0.85), (0.5, 0.85, 1.0)), hilt="gold",
-          light=True):
+          sparkle=((0.2, 0.45, 1.0), (0.3, 0.9, 1.0), (1.0, 0.35, 0.7), (1.0, 0.55, 0.15),
+                   (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=260, hilt="gold", light=True, rng=None):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
-    blade: glass tint (r, g, b) or a material. glow: colours the core drifts through along the
-    blade, or a material. hilt: material, palette key or (r, g, b)."""
+    blade: glass tint (r, g, b) or a material. sparkle: colours of the glowing specks inside
+    the crystal; sparks_count: how many. hilt: material, palette key or (r, g, b). rng: random source."""
+    rng = rng or random.Random(5)
     hilt = as_material(hilt, name + "Hilt", 0.3)
     glass = blade if isinstance(blade, bpy.types.Material) else glass_mat(name + "Glass", blade)
-    core = glow if isinstance(glow, bpy.types.Material) else core_mat(name + "Core", glow, 6.0)
+    specks = [mat(f"Spark{k}", c, 0.5, emit=c, emit_strength=4) for k, c in enumerate(sparkle)]
 
-    pom, grip_top = 0.09, 0.3            # grip runs from the pommel cuff up to the collar
+    pom, grip_top = 0.09, 0.3            # grip runs from the pommel cuff up to the neck
     guard = 0.378                        # top face of the guard
     g = guard + 0.003                    # top of the thin ring the crystal stands in
     base = g + 0.1                       # where the crystal base gives way to the blade
@@ -146,43 +119,45 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
 
     # blade: straight, narrowing steadily from the crystal base to the point
     ln = length - base
-    parts += crystal(name + "Blade", [(base - 0.01, hw, hw * 0.38), (base + ln * 0.6, hw * 0.8, hw * 0.32),
-                                      (base + ln * 0.9, hw * 0.45, hw * 0.24)], length, glass, core)
+    blade_sec = [(base - 0.01, hw, hw * 0.38), (base + ln * 0.6, hw * 0.8, hw * 0.32),
+                 (base + ln * 0.9, hw * 0.45, hw * 0.24)]
+    parts.append(prism(name + "Blade", blade_sec, glass, tip=length))
     # crystal base: a vase flaring to sharp shoulders, a waist, then a lozenge running into the blade
-    parts += crystal(name + "CrystalBase", [
-        (g, hw * 0.65, hw * 0.5), (g + 0.014, hw * 0.85, hw * 0.6), (g + 0.026, hw * 1.6, hw * 0.85),
-        (g + 0.031, hw * 1.65, hw * 0.85), (g + 0.04, hw * 0.75, hw * 0.5), (g + 0.046, hw * 0.75, hw * 0.5),
-        (g + 0.068, hw * 1.25, hw * 0.65), (base - 0.006, hw * 1.0, hw * 0.42)], base + 0.01, glass, core, 0.5)
+    base_sec = [(g, hw * 0.65, hw * 0.5), (g + 0.014, hw * 0.85, hw * 0.6), (g + 0.026, hw * 1.6, hw * 0.85),
+                (g + 0.031, hw * 1.65, hw * 0.85), (g + 0.04, hw * 0.75, hw * 0.5), (g + 0.046, hw * 0.75, hw * 0.5),
+                (g + 0.068, hw * 1.25, hw * 0.65), (base - 0.006, hw * 1.0, hw * 0.42)]
+    parts.append(prism(name + "CrystalBase", base_sec, glass, tip=base + 0.01))
+    # coloured sparks scattered through both crystals, a little denser in the base
+    glints = Batch()
+    sparks(glints, blade_sec, length, specks, sparks_count, 0.0018, rng)
+    sparks(glints, base_sec, base + 0.01, specks, sparks_count // 6, 0.0018, rng)
+    parts += glints.build(name + "Sparks", smooth=True)
     # the thin ring the crystal stands in
     parts.append(lathe(name + "Ring", [(0.0, guard - 0.001), (0.0135, guard - 0.001), (0.0135, g),
                                        (0.0, g)], (0, 0, 0), hilt, segs=32))
 
-    # guard: a heavy bell opening downward; flat top, bevelled rim drawn to a point at the back,
-    # the underside sloping in to a ringed neck that stands on a pale band at the top of the grip
-    neck0, neck1 = grip_top + 0.013, guard - 0.04
+    # guard: two frustums base to base. The upper one widens from a narrow flat top down to a
+    # sharp rim (drawn to a point at the back); the lower one narrows from the rim to a ringed neck.
+    neck1 = guard - 0.041
     parts.append(bell_guard(name + "Guard", [
-        (0.0145, neck1), (0.018, guard - 0.034), (0.03, guard - 0.028), (0.05, guard - 0.021),
-        (0.06, guard - 0.017), (0.0645, guard - 0.0135), (0.067, guard - 0.009), (0.067, guard - 0.005),
-        (0.064, guard - 0.001), (0.06, guard), (0.0, guard)], 0.4, 0.03, hilt))
-    parts.append(lathe(name + "Neck", [(0.0, neck0), (0.016, neck0), (0.0135, neck0 + 0.005),
-                                       (0.0128, neck1 - 0.004), (0.0145, neck1 + 0.001), (0.0, neck1 + 0.001)],
+        (0.015, neck1), (0.02, guard - 0.036), (0.06, guard - 0.021), (0.066, guard - 0.0185),
+        (0.068, guard - 0.017), (0.066, guard - 0.0155), (0.047, guard - 0.0015), (0.045, guard),
+        (0.0, guard)], 0.4, 0.04, hilt))
+    parts.append(lathe(name + "Neck", [(0.0, grip_top), (0.0152, grip_top), (0.0135, grip_top + 0.006),
+                                       (0.0128, neck1 - 0.004), (0.0152, neck1 + 0.001), (0.0, neck1 + 0.001)],
                        (0, 0, 0), hilt, segs=32))
-    for k in range(3):
-        parts.append(torus(f"{name}NeckRing{k}", 0.0134, 0.0014, (0, 0, neck0 + 0.006 + k * 0.0045), hilt,
+    for k in range(4):
+        parts.append(torus(f"{name}NeckRing{k}", 0.0134, 0.0014, (0, 0, grip_top + 0.008 + k * 0.0065), hilt,
                            major_segments=32, minor_segments=6))
-    band = mat("PaleSilver", (0.82, 0.84, 0.88), 0.3, 0.4)
-    parts.append(lathe(name + "Collar", [(0.0, grip_top - 0.002), (0.0175, grip_top - 0.002),
-                                         (0.0185, grip_top + 0.005), (0.0175, grip_top + 0.013),
-                                         (0.0, grip_top + 0.013)], (0, 0, 0), band, segs=32))
 
-    # knuckle bow: a thick band out of the guard's front rim, sweeping out and down past the grip
+    # knuckle bow: a thick band out of the guard's front, sweeping out and down past the grip
     # and ending in a curl
-    parts.append(curve(name + "Bow", [(0.054, 0, guard - 0.007), (0.075, 0, guard - 0.008), (0.097, 0, guard - 0.02),
+    parts.append(curve(name + "Bow", [(0.06, 0, guard - 0.014), (0.08, 0, guard - 0.013), (0.098, 0, guard - 0.022),
                                       (0.108, 0, guard - 0.055), (0.112, 0, 0.27), (0.1, 0, 0.2), (0.07, 0, 0.14),
                                       (0.045, 0, 0.11), (0.032, 0, 0.1), (0.03, 0, 0.088), (0.04, 0, 0.082),
                                       (0.047, 0, 0.092), (0.041, 0, 0.1)], 0.0072, hilt, taper=0.45))
 
-    # grip: a long gold rod, gently spindle-shaped, fullest a little below the collar and
+    # grip: a long gold rod, gently spindle-shaped, fullest a little below the neck and
     # tapering slowly down to the pommel
     parts.append(lathe(name + "Grip", [(0.0, pom), (0.011, pom), (0.0122, pom + 0.04), (0.0142, 0.18),
                                        (0.0165, 0.235), (0.0172, 0.255), (0.0165, 0.28), (0.0152, grip_top),
