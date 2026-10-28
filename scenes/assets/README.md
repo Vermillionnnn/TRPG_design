@@ -25,7 +25,7 @@
 | [`flower_bed`](flower_bed.py) | <img src="flower_bed.png" width="120"> | 石砌花坛：石边、黑土、一片花 | `width` `depth` `colors` `count` `rng` | （the Shadow 据点） |
 | [`flower_patch`](flower_patch.py) | <img src="flower_patch.png" width="120"> | 一片散花（叶丛、花茎、花朵带花心），全部合并成少量网格 | `rx` `ry` `count` `colors` `size` `rng` | （the Shadow 据点） |
 | [`fountain`](fountain.py) | <img src="fountain.png" width="120"> | 罗马式双层石喷泉：线脚边沿的水池、车削柱子托两层水盘、水帘，可加浮空法球和池壁符文 | `radius` `magic` `glow` | （the Shadow 据点） |
-| [`gem_rapier`](gem_rapier.py) | <img src="gem_rapier.png" width="120"> | 宝石刺剑：渐细的彩色玻璃水晶剑身（碎片、铅条、薄膜干涉、色散）、花瓶加菱形的水晶剑根、翘尖叶形金护板（前端连成末端打卷的护指弓）和竖槽喇叭托、带宝石戒环的粗金柄、菱形尖头剑首 | `length` `width` `blade` `gem` `hilt` `light` | （武器陈列） |
+| [`gem_rapier`](gem_rapier.py) | <img src="gem_rapier.png" width="120"> | 宝石刺剑：渐细的彩色玻璃水晶剑身（碎片、铅条、薄膜干涉、色散）、花瓶加菱形的水晶剑根、后缘带尖的圆金护板、伞骨状斜肋和套环细颈、末端打卷的粗护指弓、带宝石戒环的纺锤形粗金柄、菱形尖头剑首 | `length` `width` `blade` `gem` `hilt` `light` | （武器陈列） |
 | [`great_fireplace`](great_fireplace.py) | <img src="great_fireplace.png" width="120"> | 大石壁炉：烟熏石与玄武岩、平拱拱心石、线脚壁炉台和托架、烟囱墙腰线 | `chimney_top` `fire` `rng` | （黑杖塔办事处） |
 | [`high_back_chair`](high_back_chair.py) | <img src="high_back_chair.png" width="120"> | 雕花高背椅：车削腿和顶饰、拉扣靠垫、卷头扶手、尖顶板和宝石 | `back_height` `wood` `cushion` `gem` `tufts` | （黑杖塔办事处） |
 | [`hourglass`](hourglass.py) | <img src="hourglass.png" width="120"> | 沙漏 | `height` `wood` | （黑杖塔办事处） |

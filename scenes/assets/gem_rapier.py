@@ -1,8 +1,9 @@
 """Slender rapier with a stained-glass crystal blade and a gilded hilt, after the
 designer's reference art: the blade rises from a faceted vase-and-lozenge crystal
-on a flat leaf-shaped guard plate; a fluted trumpet joins the plate to a long gold
-grip with a sapphire ring; the knuckle bow runs on from the plate's front tip and
-ends in a curl; the pommel is a faceted gold arrowhead.
+on a round guard plate drawn to a point at the back; a fan of slanting ribs under the
+plate closes onto a ringed neck above a gently spindle-shaped gold grip with a
+sapphire ring; the knuckle bow runs from the plate's front rim and ends in a curl;
+the pommel is a faceted gold arrowhead.
 
     r = gem_rapier.build("Rapier", loc=(0, 0, 1.25))
     r.rotation_euler = (math.radians(180), 0, 0)   # point down, e.g. hung on a wall
@@ -28,7 +29,7 @@ def crystal_mat(name, tint):
     bsdf = nt.nodes["Principled BSDF"]
     inputs = bsdf.inputs
     inputs["Roughness"].default_value = 0.05
-    inputs["Transmission Weight"].default_value = 0.3
+    inputs["Transmission Weight"].default_value = 0.85
     inputs["IOR"].default_value = 1.6
     for key, value in (("Thin Film Thickness", 250.0), ("Thin Film IOR", 1.5), ("Dispersion", 0.3)):
         if key in inputs:
@@ -78,7 +79,7 @@ def crystal_mat(name, tint):
     nt.links.new(lead.outputs["Value"], glow.inputs["Factor"])
     nt.links.new(ramp.outputs["Color"], glow.inputs["A"])
     nt.links.new(glow.outputs["Result"], inputs["Emission Color"])
-    inputs["Emission Strength"].default_value = 0.7
+    inputs["Emission Strength"].default_value = 0.25
     return m
 
 
@@ -108,45 +109,26 @@ def prism(name, sections, material, tip=None, bottom=None):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def fluted(name, profile, material, flutes=12, depth=0.12, segs=72):
-    """Turned part like lathe(), its surface grooved by `flutes` lengthwise flutes."""
-    n = len(profile)
-    verts, faces = [], []
+def guard_plate(name, radius, point, thick, top, material, segs=96, rings=8):
+    """Round guard plate whose rim draws out into a point at the back (-x); top face at z = top,
+    dipping slightly toward the rim."""
+    verts, faces = [(0, 0, top), (0, 0, top - thick)], []
+    for k in range(1, rings + 1):
+        f = k / rings
+        for i in range(segs):
+            a = 2 * math.pi * i / segs
+            r = radius * (1 + point * max(0.0, -math.cos(a)) ** 10) * f
+            z = top - 0.0015 * f * f
+            verts += [(r * math.cos(a), r * math.sin(a), z), (r * math.cos(a), r * math.sin(a), z - thick * (1 - 0.6 * f))]
+    def v(k, i, bottom):
+        return 2 + 2 * ((k - 1) * segs + i % segs) + bottom
     for i in range(segs):
-        a = 2 * math.pi * i / segs
-        k = 1 - depth * (0.5 + 0.5 * math.cos(flutes * a))
-        verts += [(r * k * math.cos(a), r * k * math.sin(a), z) for r, z in profile]
-    for i in range(segs):
-        j = (i + 1) % segs
-        for p in range(n - 1):
-            faces.append((i * n + p, j * n + p, j * n + p + 1, i * n + p + 1))
-    faces.append(tuple(i * n for i in reversed(range(segs))))
-    faces.append(tuple(i * n + n - 1 for i in range(segs)))
+        faces += [(0, v(1, i, 0), v(1, i + 1, 0)), (1, v(1, i + 1, 1), v(1, i, 1))]
+        for k in range(1, rings):
+            faces.append((v(k, i, 0), v(k + 1, i, 0), v(k + 1, i + 1, 0), v(k, i + 1, 0)))
+            faces.append((v(k, i, 1), v(k, i + 1, 1), v(k + 1, i + 1, 1), v(k + 1, i, 1)))
+        faces.append((v(rings, i, 0), v(rings, i, 1), v(rings, i + 1, 1), v(rings, i + 1, 0)))
     return mesh_obj(name, verts, faces, material, smooth_angle=50)
-
-
-def leaf_plate(name, x0, x1, half_depth, thick, top, material, n=48, m=12):
-    """Flat guard plate shaped like a leaf in plan (x from x0 to x1, widest in the middle,
-    pointed at both ends), its top at z = top; the x0 tip curls upward."""
-    verts, faces = [], []
-    for i in range(n + 1):
-        x = x0 + (x1 - x0) * i / n
-        yh = half_depth * math.sin(math.pi * i / n) ** 0.7
-        lift = 0.014 * max(0.0, (x0 + 0.035 - x) / 0.035) ** 2
-        for j in range(m + 1):
-            y = yh * (2 * j / m - 1)
-            z = top + lift - 0.002 * (y / half_depth) ** 2      # faint dish toward the edges
-            verts += [(x, y, z), (x, y, z - thick)]
-    row = 2 * (m + 1)
-    for i in range(n):
-        for j in range(m):
-            a, b = i * row + 2 * j, (i + 1) * row + 2 * j
-            faces.append((a, b, b + 2, a + 2))                   # top
-            faces.append((a + 1, a + 3, b + 3, b + 1))           # underside
-        for j in (0, m):                                         # the two long edges
-            a, b = i * row + 2 * j, (i + 1) * row + 2 * j
-            faces.append((a, a + 1, b + 1, b))
-    return mesh_obj(name, verts, faces, material, smooth_angle=40)
 
 
 def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, blade=(0.85, 0.92, 1.0),
@@ -171,41 +153,55 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
     parts.append(prism(name + "Blade", [(base - 0.01, hw, hw * 0.38), (base + ln * 0.6, hw * 0.8, hw * 0.32),
                                         (base + ln * 0.9, hw * 0.45, hw * 0.24)], glass, tip=length))
     # crystal base: a vase flaring to sharp shoulders, a waist, then a lozenge running into the blade
-    g = guard + 0.008
+    g = guard + 0.006
     parts.append(prism(name + "CrystalBase", [
         (g, hw * 0.65, hw * 0.5), (g + 0.014, hw * 0.85, hw * 0.6), (g + 0.026, hw * 1.6, hw * 0.85),
         (g + 0.031, hw * 1.65, hw * 0.85), (g + 0.04, hw * 0.75, hw * 0.5), (g + 0.046, hw * 0.75, hw * 0.5),
         (g + 0.068, hw * 1.25, hw * 0.65), (base - 0.006, hw * 1.0, hw * 0.42)], glass, tip=base + 0.01))
-    parts.append(lathe(name + "Ferrule", [(0.0, guard), (hw * 1.0, guard), (hw * 0.85, g + 0.002),
-                                          (0.0, g + 0.002)], (0, 0, 0), hilt, segs=24))
+    parts.append(lathe(name + "Ferrule", [(0.0, guard - 0.001), (0.019, guard - 0.001), (0.019, guard + 0.004),
+                                          (0.016, g + 0.001), (0.0, g + 0.001)], (0, 0, 0), hilt, segs=32))
 
-    # guard: a flat leaf-shaped plate, pointed at both ends; the back tip turns up, the front tip
-    # runs on into the knuckle bow. A fluted trumpet under it steps down to a pale band on the grip.
-    x0, x1 = -0.082, 0.064
-    parts.append(leaf_plate(name + "Guard", x0, x1, 0.034, 0.005, guard, hilt))
-    parts.append(fluted(name + "Trumpet", [(0.016, grip_top + 0.012), (0.017, grip_top + 0.02),
-                                           (0.021, guard - 0.022), (0.03, guard - 0.01),
-                                           (0.032, guard - 0.004)], hilt))
+    # guard: a round plate drawn out to a point at the back; under it a fan of slanting ribs, like an
+    # umbrella frame, closes onto a narrow ringed neck that stands on a pale band at the top of the grip
+    thick = 0.005
+    parts.append(guard_plate(name + "Guard", 0.062, 0.4, thick, guard, hilt))
+    rib_top, neck_top = guard - thick + 0.001, guard - 0.026
+    parts.append(lathe(name + "RibHub", [(0.0, neck_top), (0.014, neck_top), (0.034, rib_top - 0.002),
+                                         (0.0, rib_top - 0.002)], (0, 0, 0), hilt, segs=32))
+    for k in range(14):
+        a = 2 * math.pi * k / 14
+        parts.append(curve(f"{name}Rib{k}", [(0.014 * math.cos(a), 0.014 * math.sin(a), neck_top + 0.001),
+                                             (0.03 * math.cos(a + 0.2), 0.03 * math.sin(a + 0.2), rib_top - 0.008),
+                                             (0.046 * math.cos(a + 0.35), 0.046 * math.sin(a + 0.35), rib_top)],
+                           0.0022, hilt, taper=1.3))
+    neck0 = grip_top + 0.013
+    parts.append(lathe(name + "Neck", [(0.0, neck0), (0.0165, neck0), (0.0135, neck0 + 0.006),
+                                       (0.0125, neck_top - 0.008), (0.015, neck_top), (0.0, neck_top)],
+                       (0, 0, 0), hilt, segs=32))
+    for k in range(3):
+        parts.append(torus(f"{name}NeckRing{k}", 0.0138, 0.0015, (0, 0, neck0 + 0.004 + k * 0.0045), hilt,
+                           major_segments=32, minor_segments=6))
     band = mat("PaleSilver", (0.82, 0.84, 0.88), 0.3, 0.4)
     parts.append(lathe(name + "Collar", [(0.0, grip_top - 0.002), (0.0175, grip_top - 0.002),
                                          (0.0185, grip_top + 0.005), (0.0175, grip_top + 0.013),
                                          (0.0, grip_top + 0.013)], (0, 0, 0), band, segs=32))
 
-    # knuckle bow: grows out of the guard's front tip, sweeps out and down past the grip, ends in a curl
-    parts.append(curve(name + "Bow", [(x1 - 0.008, 0, guard - 0.0025), (0.085, 0, guard - 0.005),
-                                      (0.105, 0, guard - 0.03),
-                                      (0.112, 0, 0.27), (0.1, 0, 0.2), (0.07, 0, 0.14), (0.045, 0, 0.11),
-                                      (0.032, 0, 0.1), (0.03, 0, 0.088), (0.04, 0, 0.082), (0.047, 0, 0.092),
-                                      (0.041, 0, 0.1)], 0.005, hilt, taper=0.55))
+    # knuckle bow: a thick band out of the plate's front rim, sweeping out and down past the grip
+    # and ending in a curl
+    parts.append(curve(name + "Bow", [(0.05, 0, guard - 0.003), (0.072, 0, guard - 0.004), (0.095, 0, guard - 0.016),
+                                      (0.108, 0, guard - 0.05), (0.112, 0, 0.27), (0.1, 0, 0.2), (0.07, 0, 0.14),
+                                      (0.045, 0, 0.11), (0.032, 0, 0.1), (0.03, 0, 0.088), (0.04, 0, 0.082),
+                                      (0.047, 0, 0.092), (0.041, 0, 0.1)], 0.0068, hilt, taper=0.45))
 
-    # grip: a long gold rod, fuller near the guard, with a gem ring where the forefinger sits
-    parts.append(lathe(name + "Grip", [(0.0, pom), (0.0125, pom), (0.0135, pom + 0.04), (0.0155, 0.2),
-                                       (0.0165, grip_top), (0.0, grip_top)], (0, 0, 0), hilt, segs=32))
-    rz = grip_top - 0.04
-    parts.append(torus(name + "GemRing", 0.0175, 0.0035, (0, 0, rz), hilt, major_segments=40, minor_segments=10))
-    parts.append(torus(name + "GemBezel", 0.0055, 0.0018, (0, -0.02, rz), hilt, rot=(math.radians(90), 0, 0),
+    # grip: a long gold rod, gently spindle-shaped, with a gem ring where the forefinger sits
+    parts.append(lathe(name + "Grip", [(0.0, pom), (0.0115, pom), (0.0135, pom + 0.03), (0.016, pom + 0.07),
+                                       (0.0175, 0.2), (0.0168, 0.25), (0.015, grip_top - 0.01),
+                                       (0.0145, grip_top), (0.0, grip_top)], (0, 0, 0), hilt, segs=32))
+    rz = grip_top - 0.045
+    parts.append(torus(name + "GemRing", 0.0182, 0.0035, (0, 0, rz), hilt, major_segments=40, minor_segments=10))
+    parts.append(torus(name + "GemBezel", 0.0055, 0.0018, (0, -0.0215, rz), hilt, rot=(math.radians(90), 0, 0),
                        major_segments=20, minor_segments=6))
-    parts.append(sphere(name + "GripGem", 0.0055, (0, -0.0205, rz), gem, scale=(1, 0.65, 1), segs=14))
+    parts.append(sphere(name + "GripGem", 0.0055, (0, -0.022, rz), gem, scale=(1, 0.65, 1), segs=14))
 
     # pommel: a cuff with curled prongs over two stacked faceted lozenges, the lower one a point
     parts.append(lathe(name + "PommelPoint", [(0.0, 0.0), (0.012, 0.022), (0.016, 0.03), (0.008, 0.042),
