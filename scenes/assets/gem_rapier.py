@@ -2,8 +2,8 @@
 after the designer's reference art: the blade rises from a faceted vase-and-lozenge
 crystal set in a thin gold ring on a heavy guard shaped like two stacked frustums (a
 narrow flat top widening down to a sharp rim drawn to a point at the back, then
-narrowing again into a ringed neck); the knuckle bow runs from the guard's front and
-ends in a curl; the grip is gently spindle-shaped, fullest near its top; the pommel is
+narrowing again into a ringed neck); the knuckle bow is a flat band carrying the
+guard's top face out and down, ending in a curl; the grip is gently spindle-shaped, fullest near its top; the pommel is
 a faceted gold arrowhead.
 
     r = gem_rapier.build("Rapier", loc=(0, 0, 1.25))
@@ -78,6 +78,35 @@ def sparks(batch, sections, tip, materials, count, size, rng):
         batch.ball(rng.choice(materials), size * rng.uniform(0.5, 1.2), (x, y, z))
 
 
+def band(name, pts, half_breadth, half_thick, material, res=10, ring=16):
+    """Flat band swept along a smooth path through pts, which lie in the x-z plane. Its
+    cross-section is an ellipse: half_breadth(u) across the path within that plane, half_thick(u)
+    along y, with u running 0..1 from the first point to the last."""
+    def catmull(p0, p1, p2, p3, t):
+        return tuple(0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t
+                            + (-a + 3 * b - 3 * c + d) * t ** 3) for a, b, c, d in zip(p0, p1, p2, p3))
+    ext = [pts[0]] + list(pts) + [pts[-1]]
+    path = [catmull(*ext[i:i + 4], k / res) for i in range(len(pts) - 1) for k in range(res)] + [pts[-1]]
+    verts, faces = [], []
+    for i, (x, z) in enumerate(path):
+        u = i / (len(path) - 1)
+        x0, z0 = path[max(i - 1, 0)]
+        x1, z1 = path[min(i + 1, len(path) - 1)]
+        tx, tz = x1 - x0, z1 - z0
+        tl = math.hypot(tx, tz)
+        nx, nz = tz / tl, -tx / tl                    # in-plane normal to the path
+        a, b = half_breadth(u), half_thick(u)
+        for k in range(ring):
+            c, s = math.cos(2 * math.pi * k / ring), math.sin(2 * math.pi * k / ring)
+            verts.append((x + nx * a * c, b * s, z + nz * a * c))
+    for i in range(len(path) - 1):
+        for k in range(ring):
+            j = (k + 1) % ring
+            faces.append((i * ring + k, i * ring + j, (i + 1) * ring + j, (i + 1) * ring + k))
+    faces += [tuple(reversed(range(ring))), tuple((len(path) - 1) * ring + k for k in range(ring))]
+    return mesh_obj(name, verts, faces, material, smooth_angle=70)
+
+
 def bell_guard(name, profile, point, reach, material, segs=96):
     """Turned guard from a (radius, z) profile listed from the neck outward and up to the
     top centre; the widest part is drawn out toward -x into a point (`point` = extra length
@@ -150,12 +179,16 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
         parts.append(torus(f"{name}NeckRing{k}", 0.0134, 0.0014, (0, 0, grip_top + 0.008 + k * 0.0065), hilt,
                            major_segments=32, minor_segments=6))
 
-    # knuckle bow: a thick band out of the guard's front, sweeping out and down past the grip
-    # and ending in a curl
-    parts.append(curve(name + "Bow", [(0.06, 0, guard - 0.014), (0.08, 0, guard - 0.013), (0.098, 0, guard - 0.022),
-                                      (0.108, 0, guard - 0.055), (0.112, 0, 0.27), (0.1, 0, 0.2), (0.07, 0, 0.14),
-                                      (0.045, 0, 0.11), (0.032, 0, 0.1), (0.03, 0, 0.088), (0.04, 0, 0.082),
-                                      (0.047, 0, 0.092), (0.041, 0, 0.1)], 0.0072, hilt, taper=0.45))
+    # knuckle bow: a flat band growing out of the guard's front; its upper edge carries on the
+    # slope of the guard's upper frustum and bends smoothly down past the grip, narrowing steadily
+    # and winding into a curl above the pommel
+    parts.append(band(name + "Bow", [
+        (0.038, guard - 0.0095), (0.055, guard - 0.0158), (0.075, guard - 0.026), (0.092, guard - 0.041),
+        (0.104, guard - 0.065), (0.11, 0.285), (0.106, 0.235), (0.092, 0.19),
+        (0.07, 0.158), (0.05, 0.14), (0.038, 0.128), (0.036, 0.115), (0.043, 0.107), (0.052, 0.111),
+        (0.054, 0.12), (0.048, 0.125), (0.044, 0.12)],
+        lambda u: 0.0034 + 0.0085 * max(0.0, 1 - u / 0.28) ** 1.6 + 0.0016 * (1 - u),
+        lambda u: 0.0055 + 0.016 * max(0.0, 1 - u / 0.14) ** 2 - 0.0026 * u, hilt))
 
     # grip: a long gold rod, gently spindle-shaped, fullest a little below the neck and
     # tapering slowly down to the pommel
