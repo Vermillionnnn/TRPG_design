@@ -3,7 +3,7 @@ after the designer's reference art and a front-view sketch fitted over it. The b
 from a faceted vase-and-lozenge crystal set in a thin gold ring on a heavy guard: a narrow
 flat top whose sides bulge out to a sharp round rim, then a frustum narrowing straight into
 the grip. The grip is wire-wrapped at the top, fullest a little below it and tapering down
-to a faceted pommel. The knuckle bow is a flat band whose upper edge carries on the guard's
+to the pommel: a fluted gold knob belted with sapphires above a gold cage round a crystal drop. The knuckle bow is a flat band whose upper edge carries on the guard's
 curve; it swings far out, slants back in, thinning, then widens again to meet the grip's
 lower part and winds into a tightening spiral.
 
@@ -17,7 +17,7 @@ import random
 
 import bpy
 
-from assets.lib import Batch, as_material, group, lathe, mat, mesh_obj, point_light, torus
+from assets.lib import Batch, as_material, curve, group, lathe, mat, mesh_obj, point_light, sphere, torus
 
 
 def glass_mat(name, tint):
@@ -188,7 +188,40 @@ def turned(name, profile, top, material, segs=64, rot=(0, 0, 0)):
                  segs=segs, rot=rot)
 
 
-def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.03, blade=(0.95, 0.97, 1.0),
+def fluted(name, profile, top, material, flutes=12, depth=0.1, segs=96):
+    """turned(), its surface grooved lengthwise by `flutes` rounded flutes."""
+    verts, faces = [], []
+    n = len(profile)
+    for i in range(segs):
+        a = 2 * math.pi * i / segs
+        k = 1 - depth * (0.5 + 0.5 * math.cos(flutes * a))
+        verts += [(r * k * math.cos(a) / 1000, r * k * math.sin(a) / 1000, top - y / 1000) for r, y in profile]
+    for i in range(segs):
+        j = (i + 1) % segs
+        for p in range(n - 1):
+            faces.append((i * n + p, j * n + p, j * n + p + 1, i * n + p + 1))
+    faces += [tuple(i * n for i in range(segs)), tuple(i * n + n - 1 for i in reversed(range(segs)))]
+    return mesh_obj(name, verts, faces, material, smooth_angle=60)
+
+
+def faceted(name, profile, top, material, segs=8):
+    """turned() with flat facets: a cut stone. The profile must start and end on the axis."""
+    verts = [(0, 0, top - profile[0][1] / 1000)]
+    rings = profile[1:-1]
+    for r, y in rings:
+        verts += [(r * math.cos(2 * math.pi * i / segs) / 1000, r * math.sin(2 * math.pi * i / segs) / 1000,
+                   top - y / 1000) for i in range(segs)]
+    verts.append((0, 0, top - profile[-1][1] / 1000))
+    faces = [(0, 1 + (i + 1) % segs, 1 + i) for i in range(segs)]
+    for k in range(len(rings) - 1):
+        o = 1 + k * segs
+        faces += [(o + i, o + (i + 1) % segs, o + segs + (i + 1) % segs, o + segs + i) for i in range(segs)]
+    last = 1 + (len(rings) - 1) * segs
+    faces += [(last + i, last + (i + 1) % segs, len(verts) - 1) for i in range(segs)]
+    return mesh_obj(name, verts, faces, material, smooth_angle=0)
+
+
+def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.036, blade=(0.95, 0.97, 1.0),
           sparkle=((0.2, 0.45, 1.0), (0.3, 0.9, 1.0), (1.0, 0.35, 0.7), (1.0, 0.55, 0.15),
                    (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=260, hilt="gold", light=True, rng=None):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
@@ -201,7 +234,8 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.03, b
 
     guard = HILT / 1000                  # top face of the guard
     g = guard + 0.003                    # top of the thin ring the crystal stands in
-    base = g + 0.1                       # where the crystal base gives way to the blade
+    c = width / 0.03                     # the crystal base grows with the blade
+    base = g + 0.1 * c                   # where the crystal base gives way to the blade
     hw = width / 2
     parts = []
 
@@ -211,17 +245,17 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.03, b
                  (base + ln * 0.9, hw * 0.45, hw * 0.24)]
     parts.append(prism(name + "Blade", blade_sec, glass, tip=length))
     # crystal base: a vase flaring to sharp shoulders, a waist, then a lozenge running into the blade
-    base_sec = [(g, hw * 0.65, hw * 0.5), (g + 0.014, hw * 0.85, hw * 0.6), (g + 0.026, hw * 1.6, hw * 0.85),
-                (g + 0.031, hw * 1.65, hw * 0.85), (g + 0.04, hw * 0.75, hw * 0.5), (g + 0.046, hw * 0.75, hw * 0.5),
-                (g + 0.068, hw * 1.25, hw * 0.65), (base - 0.006, hw * 1.0, hw * 0.42)]
-    parts.append(prism(name + "CrystalBase", base_sec, glass, tip=base + 0.01))
+    base_sec = [(g + dz * c, hw * w, hw * t) for dz, w, t in [
+        (0, 0.65, 0.5), (0.014, 0.85, 0.6), (0.026, 1.6, 0.85), (0.031, 1.65, 0.85), (0.04, 0.75, 0.5),
+        (0.046, 0.75, 0.5), (0.068, 1.25, 0.65), (0.094, 1.0, 0.42)]]
+    parts.append(prism(name + "CrystalBase", base_sec, glass, tip=base + 0.01 * c))
     # coloured sparks scattered through both crystals, a little denser in the base
     glints = Batch()
     sparks(glints, blade_sec, length, specks, sparks_count, 0.0018, rng)
-    sparks(glints, base_sec, base + 0.01, specks, sparks_count // 6, 0.0018, rng)
+    sparks(glints, base_sec, base + 0.01 * c, specks, sparks_count // 6, 0.0018, rng)
     parts += glints.build(name + "Sparks", smooth=True)
     # the thin ring the crystal stands in
-    parts.append(turned(name + "Ring", [(0, -3), (13.5, -3), (13.5, 1), (0, 1)], guard, hilt, segs=32))
+    parts.append(turned(name + "Ring", [(0, -3), (14.5 * c / 1.2, -3), (14.5 * c / 1.2, 1), (0, 1)], guard, hilt, segs=32))
 
     # guard: a narrow flat top whose sides bulge out to a sharp round rim (a narrow band, lightly
     # chamfered), then a frustum narrowing straight into the grip
@@ -242,12 +276,51 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.03, b
     path, breadth = bow_path()
     parts.append(band(name + "Bow", path, breadth, [min(5.5, max(3.0, 0.75 * w)) for w in breadth], guard, hilt))
 
-    # pommel: a cuff, then two stacked faceted lozenges, the lower one a long point
-    parts.append(turned(name + "PommelCuff", [(0, POMMEL_Y - 1), (15, POMMEL_Y - 1), (15, 383), (0, 383)],
+    # pommel, the counterweight: a beaded collar, a fluted pear-shaped knob with a belt of small
+    # sapphires round its widest part, then a calyx whose prongs make a cage round a crystal drop
+    # (the blade's glass and sparks) and close on a turned finial at the tip
+    P = POMMEL_Y
+    parts.append(turned(name + "PommelCollar", [(0, P - 1), (14.5, P - 1), (16.5, P + 1.5), (14.5, P + 4),
+                                                (16.5, P + 6.5), (15, P + 9), (0, P + 9)], guard, hilt, segs=48))
+    parts.append(fluted(name + "PommelKnob", [(0, P + 8), (14, P + 8), (17, P + 14), (21, P + 22), (23.5, P + 31),
+                                              (22.5, P + 39), (18, P + 46), (13, P + 52), (0, P + 52)], guard, hilt))
+    belt = P + 31
+    parts.append(turned(name + "PommelBelt", [(0, belt - 4), (23.8, belt - 4), (24.6, belt - 2.5), (24.6, belt + 2.5),
+                                              (23.8, belt + 4), (0, belt + 4)], guard, hilt, segs=64))
+    sapphire = mat("Sapphire", (0.05, 0.12, 0.8), 0.05, emit=(0.1, 0.25, 1.0), emit_strength=1.0)
+    for k in range(6):
+        a = math.pi / 6 + k * math.pi / 3
+        c, sn = math.cos(a), math.sin(a)
+        z = guard - belt / 1000
+        gem_o = sphere(f"{name}PommelGem{k}", 0.0028, (0.0252 * c, 0.0252 * sn, z), sapphire,
+                       scale=(0.6, 1, 1), segs=16)
+        gem_o.rotation_euler = (0, 0, a)
+        parts.append(gem_o)
+        parts.append(torus(f"{name}PommelBezel{k}", 0.0031, 0.0008, (0.0249 * c, 0.0249 * sn, z), hilt,
+                           rot=(math.pi / 2, 0, a + math.pi / 2), major_segments=24, minor_segments=6))
+    cal = P + 51
+    parts.append(turned(name + "PommelCalyx", [(0, cal), (13.5, cal), (15.5, cal + 3), (14, cal + 6),
+                                               (9, cal + 8), (0, cal + 8)], guard, hilt, segs=48))
+    drop = [(0, cal + 5), (8, cal + 6), (11.5, cal + 15), (10.5, cal + 24), (0, cal + 52)]
+    parts.append(faceted(name + "PommelCrystal", drop, guard, glass, segs=8))
+    tip = cal + 51                       # the finial the prongs close on
+    for k in range(6):
+        a = k * math.pi / 3
+        c, sn = math.cos(a), math.sin(a)
+        ring = [(14.5, cal + 5), (14.2, cal + 14), (12.6, cal + 25), (9, cal + 38), (5, tip - 1)]
+        parts.append(curve(f"{name}PommelProng{k}", [(r * c / 1000, r * sn / 1000, guard - y / 1000) for r, y in ring],
+                           0.0017, hilt, taper=0.7))
+    parts.append(turned(name + "PommelFinial", [(0, tip - 3), (5, tip - 2), (7, tip + 2), (5.5, tip + 6),
+                                                (2.6, tip + 8.5), (3.8, tip + 10.5), (2.4, tip + 13), (0, HILT)],
                         guard, hilt, segs=32))
-    parts.append(turned(name + "PommelLozenge", [(0, 382), (21, 401), (15, 418), (0, 424)], guard, hilt, segs=6,
-                        rot=(0, 0, math.pi / 6)))
-    parts.append(turned(name + "PommelPoint", [(0, 421), (18, 442), (0, HILT)], guard, hilt, segs=6))
+    glints = Batch()                     # a few sparks inside the drop too
+    for _ in range(30):
+        y = rng.uniform(cal + 8, cal + 40)
+        r = 7.5 * (1 - max(0.0, y - cal - 18) / 26) * rng.random() ** 0.5
+        a = rng.uniform(0, 2 * math.pi)
+        glints.ball(rng.choice(specks), 0.0015 * rng.uniform(0.6, 1.1),
+                    (r * math.cos(a) / 1000, r * math.sin(a) / 1000, guard - y / 1000))
+    parts += glints.build(name + "PommelSparks", smooth=True)
 
     if light:
         parts.append(point_light(name + "Light", (0, -0.08, base + ln * 0.3), 3, (0.5, 0.6, 1.0), radius=0.1))
