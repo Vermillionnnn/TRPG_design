@@ -3,6 +3,7 @@ knuckle bow hanging below, floating in front of a dark wine-red backdrop.
 
 Run with:  python3 scenes/weapons/rapier_scene.py [--render out.png] [--samples N]
            [--shot full|hilt|pommel] [--length metres] [--res percent] [--save out.blend]
+           [--anim frames_dir]   (24 frames, one turn about the blade's axis, for 8 fps)
 Requires the `bpy` module (pip install bpy) or run inside Blender:
     blender -b -P scenes/weapons/rapier_scene.py -- --render out.png
 
@@ -41,9 +42,25 @@ def shots(length):
     }
 
 
-def build_sword(length):
+SPIN_FRAMES = 24                   # the spin: one full turn in 24 held poses ...
+SPIN_FPS = 8                       # ... shown at 8 fps, 3 s, like stop motion
+
+
+def build_sword(length, spin=False):
+    """The sword hangs from an empty at the origin; with spin, the empty turns about the
+    blade's own axis (+X), 360 / SPIN_FRAMES degrees a frame, back to the start on the loop."""
+    pivot = bpy.data.objects.new("Spin", None)
+    bpy.context.collection.objects.link(pivot)
     r = gem_rapier.build("Rapier", loc=(-length / 2, 0, 0), length=length, light=False)
     r.rotation_euler = (0, math.radians(90), 0)      # blade to +X, knuckle bow below
+    r.parent = pivot
+    if spin:
+        scene = bpy.context.scene
+        scene.frame_start, scene.frame_end = 1, SPIN_FRAMES
+        scene.render.fps = SPIN_FPS
+        for f in range(SPIN_FRAMES):
+            pivot.rotation_euler = (2 * math.pi * f / SPIN_FRAMES, 0, 0)
+            pivot.keyframe_insert("rotation_euler", frame=f + 1)
 
 
 def backdrop(world):
@@ -174,7 +191,7 @@ def setup_world_and_camera(samples, shot, length):
 
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
-    out, samples, shot, res, blend_out = None, 128, "full", 100, None
+    out, samples, shot, res, blend_out, anim = None, 128, "full", 100, None, None
     length = inspect.signature(gem_rapier.build).parameters["length"].default
     for i, a in enumerate(argv):
         if a == "--render":
@@ -189,9 +206,11 @@ def main():
             blend_out = argv[i + 1]
         elif a == "--length":
             length = float(argv[i + 1])
+        elif a == "--anim":
+            anim = argv[i + 1]
 
     reset()
-    build_sword(length)
+    build_sword(length, spin=anim is not None)
     setup_world_and_camera(samples, shot, length)
     bpy.context.scene.render.resolution_percentage = res
     if blend_out:
@@ -199,6 +218,10 @@ def main():
     if out:
         bpy.context.scene.render.filepath = os.path.abspath(out)
         bpy.ops.render.render(write_still=True)
+    if anim:
+        os.makedirs(anim, exist_ok=True)
+        bpy.context.scene.render.filepath = os.path.join(os.path.abspath(anim), "frame_####")
+        bpy.ops.render.render(animation=True)
 
 
 main()
