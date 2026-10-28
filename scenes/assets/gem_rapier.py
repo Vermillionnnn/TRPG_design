@@ -1,8 +1,8 @@
 """Slender rapier with a stained-glass crystal blade and a gilded hilt, after the
 designer's reference art: the blade rises from a faceted vase-and-lozenge crystal
-on a flat disc guard; a fluted trumpet joins the disc to a long gold grip with a
-sapphire ring; the knuckle bow sweeps off the disc rim and ends in a curl; the
-pommel is a faceted gold arrowhead.
+on a flat leaf-shaped guard plate; a fluted trumpet joins the plate to a long gold
+grip with a sapphire ring; the knuckle bow runs on from the plate's front tip and
+ends in a curl; the pommel is a faceted gold arrowhead.
 
     r = gem_rapier.build("Rapier", loc=(0, 0, 1.25))
     r.rotation_euler = (math.radians(180), 0, 0)   # point down, e.g. hung on a wall
@@ -125,6 +125,30 @@ def fluted(name, profile, material, flutes=12, depth=0.12, segs=72):
     return mesh_obj(name, verts, faces, material, smooth_angle=50)
 
 
+def leaf_plate(name, x0, x1, half_depth, thick, top, material, n=48, m=12):
+    """Flat guard plate shaped like a leaf in plan (x from x0 to x1, widest in the middle,
+    pointed at both ends), its top at z = top; the x0 tip curls upward."""
+    verts, faces = [], []
+    for i in range(n + 1):
+        x = x0 + (x1 - x0) * i / n
+        yh = half_depth * math.sin(math.pi * i / n) ** 0.7
+        lift = 0.014 * max(0.0, (x0 + 0.035 - x) / 0.035) ** 2
+        for j in range(m + 1):
+            y = yh * (2 * j / m - 1)
+            z = top + lift - 0.002 * (y / half_depth) ** 2      # faint dish toward the edges
+            verts += [(x, y, z), (x, y, z - thick)]
+    row = 2 * (m + 1)
+    for i in range(n):
+        for j in range(m):
+            a, b = i * row + 2 * j, (i + 1) * row + 2 * j
+            faces.append((a, b, b + 2, a + 2))                   # top
+            faces.append((a + 1, a + 3, b + 3, b + 1))           # underside
+        for j in (0, m):                                         # the two long edges
+            a, b = i * row + 2 * j, (i + 1) * row + 2 * j
+            faces.append((a, a + 1, b + 1, b))
+    return mesh_obj(name, verts, faces, material, smooth_angle=40)
+
+
 def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, blade=(0.85, 0.92, 1.0),
           gem="sapphire", hilt="gold", light=True):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
@@ -155,17 +179,21 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
     parts.append(lathe(name + "Ferrule", [(0.0, guard), (hw * 1.0, guard), (hw * 0.85, g + 0.002),
                                           (0.0, g + 0.002)], (0, 0, 0), hilt, segs=24))
 
-    # disc guard: wide and thin, with a fluted trumpet beneath it down to the grip collar
-    parts.append(lathe(name + "Disc", [(0.0, guard - 0.007), (0.06, guard - 0.006), (0.068, guard - 0.002),
-                                       (0.068, guard), (0.0, guard)], (0, 0, 0), hilt, segs=64))
-    parts.append(fluted(name + "Trumpet", [(0.017, grip_top + 0.012), (0.019, grip_top + 0.024),
-                                           (0.026, guard - 0.016), (0.04, guard - 0.007)], hilt))
+    # guard: a flat leaf-shaped plate, pointed at both ends; the back tip turns up, the front tip
+    # runs on into the knuckle bow. A fluted trumpet under it steps down to a pale band on the grip.
+    x0, x1 = -0.082, 0.064
+    parts.append(leaf_plate(name + "Guard", x0, x1, 0.034, 0.005, guard, hilt))
+    parts.append(fluted(name + "Trumpet", [(0.016, grip_top + 0.012), (0.017, grip_top + 0.02),
+                                           (0.021, guard - 0.022), (0.03, guard - 0.01),
+                                           (0.032, guard - 0.004)], hilt))
+    band = mat("PaleSilver", (0.82, 0.84, 0.88), 0.3, 0.4)
     parts.append(lathe(name + "Collar", [(0.0, grip_top - 0.002), (0.0175, grip_top - 0.002),
                                          (0.0185, grip_top + 0.005), (0.0175, grip_top + 0.013),
-                                         (0.0, grip_top + 0.013)], (0, 0, 0), material("steel"), segs=32))
+                                         (0.0, grip_top + 0.013)], (0, 0, 0), band, segs=32))
 
-    # knuckle bow: grows out of the disc rim, sweeps out and down past the grip, ends in a curl
-    parts.append(curve(name + "Bow", [(0.058, 0, guard - 0.004), (0.085, 0, guard - 0.006), (0.105, 0, guard - 0.03),
+    # knuckle bow: grows out of the guard's front tip, sweeps out and down past the grip, ends in a curl
+    parts.append(curve(name + "Bow", [(x1 - 0.008, 0, guard - 0.0025), (0.085, 0, guard - 0.005),
+                                      (0.105, 0, guard - 0.03),
                                       (0.112, 0, 0.27), (0.1, 0, 0.2), (0.07, 0, 0.14), (0.045, 0, 0.11),
                                       (0.032, 0, 0.1), (0.03, 0, 0.088), (0.04, 0, 0.082), (0.047, 0, 0.092),
                                       (0.041, 0, 0.1)], 0.005, hilt, taper=0.55))
