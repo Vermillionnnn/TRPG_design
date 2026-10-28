@@ -2,7 +2,8 @@
 after the designer's reference art and a front-view sketch fitted over it. The blade rises
 from a faceted vase-and-lozenge crystal set in a thin gold ring on a heavy guard: a narrow
 flat top whose sides bulge out to a sharp round rim, then a frustum narrowing straight into
-the grip. The grip is wire-wrapped at the top, fullest a little below it and tapering down
+the grip. The grip is wire-wrapped at the top, channelled lengthwise below, fullest a little
+below the wraps and tapering down
 to the pommel: a fluted gold knob belted with sapphires above a gold cage round a crystal drop. The knuckle bow is a flat band whose upper edge carries on the guard's
 curve; it swings far out, slants back in, thinning, then widens again to meet the grip's
 lower part and winds into a tightening spiral.
@@ -188,6 +189,42 @@ def turned(name, profile, top, material, segs=64, rot=(0, 0, 0)):
                  segs=segs, rot=rot)
 
 
+def grooved_grip(name, profile, top, material, grooves=8, y0=76.0, y1=366.0, half=1.6, depth=1.2,
+                 segs=192, step=2.0):
+    """The grip: turned from a (radius, depth) profile in mm listed top to bottom, with `grooves`
+    rounded lengthwise channels (half width `half`, `depth` deep, in mm) cut between depths y0 and
+    y1, fading in and out at their ends. The channels sit between the knuckle bow's plane and
+    its neighbours, so none runs under the bow where it meets the grip."""
+    ys, rs = [y for _, y in profile], [r for r, _ in profile]
+
+    def radius(y):
+        for k in range(len(ys) - 1):
+            if ys[k] <= y <= ys[k + 1]:
+                return rs[k] + (rs[k + 1] - rs[k]) * (y - ys[k]) / (ys[k + 1] - ys[k])
+        return rs[-1]
+
+    rows = [ys[0] + step * k for k in range(int((ys[-1] - ys[0]) / step) + 1)]
+    pitch = 2 * math.pi / grooves
+    verts = [(0, 0, top - (ys[0] - 0.5) / 1000)]
+    for y in rows:
+        r0 = radius(y)
+        fade = smooth((y - y0) / 12) * smooth((y1 - y) / 12)
+        for i in range(segs):
+            a = 2 * math.pi * i / segs
+            d = abs(((a - pitch / 2) % pitch) - pitch / 2) * r0       # arc distance to the nearest channel
+            cut = depth * fade * max(0.0, 1 - (d / half) ** 2) ** 0.5   # round-bottomed channel
+            r = r0 - cut
+            verts.append((r * math.cos(a) / 1000, r * math.sin(a) / 1000, top - y / 1000))
+    verts.append((0, 0, top - (ys[-1] + 0.5) / 1000))
+    faces = [(0, 1 + (i + 1) % segs, 1 + i) for i in range(segs)]
+    for k in range(len(rows) - 1):
+        o = 1 + k * segs
+        faces += [(o + i, o + segs + i, o + segs + (i + 1) % segs, o + (i + 1) % segs) for i in range(segs)]
+    last = 1 + (len(rows) - 1) * segs
+    faces += [(last + (i + 1) % segs, last + i, len(verts) - 1) for i in range(segs)]
+    return mesh_obj(name, verts, faces, material, smooth_angle=50)
+
+
 def fluted(name, profile, top, material, flutes=12, depth=0.1, segs=96):
     """turned(), its surface grooved lengthwise by `flutes` rounded flutes."""
     verts, faces = [], []
@@ -265,10 +302,12 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036,
                                          (RIM - 0.3, RIM_Y + 0.6), (15.5, GUARD_Y), (0, GUARD_Y)],
                         guard, hilt, segs=96))
 
-    # grip: one smooth turned piece from the guard to the pommel, with wire wraps at the top
+    # grip: one turned piece from the guard to the pommel, wire-wrapped at the top, with recessed
+    # lengthwise channels below the wraps (offset half a pitch so the bow's join lands between two)
     prof = catmull([(r, y) for y, r in GRIP], res=4)
-    parts.append(turned(name + "Grip", [(0, GUARD_Y - 1)] + [(r, y) for r, y in prof] + [(0, POMMEL_Y)],
-                        guard, hilt, segs=48))
+    grip_o = grooved_grip(name + "Grip", [(r, y) for r, y in prof], guard, hilt)
+    grip_o.rotation_euler = (0, 0, math.pi / 8)
+    parts.append(grip_o)
     for k, y in enumerate(WRAPS):
         parts.append(torus(f"{name}Wrap{k}", grip_radius(y) / 1000, 0.0012, (0, 0, guard - y / 1000), hilt,
                            major_segments=48, minor_segments=8))
