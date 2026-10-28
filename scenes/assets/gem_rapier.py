@@ -7,7 +7,7 @@ to the pommel: a fluted gold knob belted with sapphires above a gold cage round 
 curve; it swings far out, slants back in, thinning, then widens again to meet the grip's
 lower part and winds into a tightening spiral.
 
-    r = gem_rapier.build("Rapier", loc=(0, 0, 1.37))
+    r = gem_rapier.build("Rapier", loc=(0, 0, 1.75))
     r.rotation_euler = (math.radians(180), 0, 0)   # point down, e.g. hung on a wall
 
 Origin is at the pommel tip; the blade points up along local +z, flat side facing -y.
@@ -221,7 +221,7 @@ def faceted(name, profile, top, material, segs=8):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.036, blade=(0.95, 0.97, 1.0),
+def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036, blade=(0.95, 0.97, 1.0),
           sparkle=((0.2, 0.45, 1.0), (0.3, 0.9, 1.0), (1.0, 0.35, 0.7), (1.0, 0.55, 0.15),
                    (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=260, hilt="gold", light=True, rng=None):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
@@ -239,10 +239,11 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.37, width=0.036, 
     hw = width / 2
     parts = []
 
-    # blade: straight, narrowing steadily from the crystal base to the point
+    # blade: almost full width all the way, narrowing only a little, then a short triangular point
     ln = length - base
-    blade_sec = [(base - 0.01, hw, hw * 0.38), (base + ln * 0.6, hw * 0.8, hw * 0.32),
-                 (base + ln * 0.9, hw * 0.45, hw * 0.24)]
+    point = width * 1.6
+    blade_sec = [(base - 0.01, hw, hw * 0.38), (base + ln * 0.5, hw * 0.93, hw * 0.36),
+                 (length - point, hw * 0.85, hw * 0.33)]
     parts.append(prism(name + "Blade", blade_sec, glass, tip=length))
     # crystal base: a vase flaring to sharp shoulders, a waist, then a lozenge running into the blade
     base_sec = [(g + dz * c, hw * w, hw * t) for dz, w, t in [
