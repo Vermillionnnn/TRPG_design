@@ -1,16 +1,17 @@
 """The crystal rapier on its own, lying level with the blade pointing right and the
-knuckle bow hanging below, floating in front of a dark teal backdrop.
+knuckle bow hanging below, floating in front of a dark wine-red backdrop.
 
 Run with:  python3 scenes/weapons/rapier_scene.py [--render out.png] [--samples N]
-           [--shot full|hilt|pommel] [--res percent] [--save out.blend]
+           [--shot full|hilt|pommel] [--length metres] [--res percent] [--save out.blend]
 Requires the `bpy` module (pip install bpy) or run inside Blender:
     blender -b -P scenes/weapons/rapier_scene.py -- --render out.png
 
-Units are metres. The sword lies along +X centred on the origin, flat side to -Y
+Units are metres. The sword (default length unless --length) lies along +X centred on the origin, flat side to -Y
 (the camera). Lighting is a studio set of long strip softboxes: one overhead to
 run a clean highlight down the gold and the glass, two behind for the blade's edges,
 a low cool fill, and a small warm spot on the hilt.
 """
+import inspect
 import math
 import os
 import sys
@@ -23,23 +24,25 @@ from mathutils import Vector  # noqa: E402
 from assets import gem_rapier  # noqa: E402
 from assets.lib import reset  # noqa: E402
 
-LENGTH = 1.745                     # the asset's default length
-HILT_X = -LENGTH / 2               # pommel tip; the guard sits HILT mm to its right
-
-# shot: (camera location, look-at point, focal length, resolution)
-SHOTS = {
-    "full": ((0.0, -4.6, 0.3), (0.0, 0.0, -0.02), 85, (2400, 1000)),
-    "hilt": ((-0.42, -1.05, 0.22), (-0.6, 0.0, -0.03), 60, (1600, 1000)),
-    "pommel": ((-0.72, -0.42, 0.1), (-0.83, 0.0, -0.01), 60, (1200, 1000)),
-}
-
-# backdrop: a soft lighter pool behind the sword fading to near black at the frame edges
-POOL = (0.045, 0.11, 0.12)
-EDGE = (0.004, 0.012, 0.016)
+# backdrop: a soft wine-red pool behind the sword fading to near black at the frame edges
+POOL = (0.13, 0.012, 0.03)
+EDGE = (0.012, 0.0015, 0.004)
 
 
-def build_sword():
-    r = gem_rapier.build("Rapier", loc=(HILT_X, 0, 0))
+def shots(length):
+    """shot: (camera location, look-at point, focal length, resolution). The sword lies centred
+    on the origin, so the pommel tip is at x = -length / 2."""
+    p = -length / 2
+    d = length * 1.12 * 85 / 36             # frames the whole sword with a little margin
+    return {
+        "full": ((0.0, -d, d * 0.065), (0.0, 0.0, -0.02), 85, (2400, 1000)),
+        "hilt": ((p + 0.45, -1.05, 0.22), (p + 0.27, 0.0, -0.03), 60, (1600, 1000)),
+        "pommel": ((p + 0.15, -0.42, 0.1), (p + 0.04, 0.0, -0.01), 60, (1200, 1000)),
+    }
+
+
+def build_sword(length):
+    r = gem_rapier.build("Rapier", loc=(-length / 2, 0, 0), length=length)
     r.rotation_euler = (0, math.radians(90), 0)      # blade to +X, knuckle bow below
 
 
@@ -92,17 +95,19 @@ def strip(scene, name, loc, target, energy, color, size, size_y, camera_visible=
     return o
 
 
-def setup_world_and_camera(samples, shot):
+def setup_world_and_camera(samples, shot, length):
     scene = bpy.context.scene
     world = bpy.data.worlds.new("World")
     scene.world = world
     backdrop(world)
 
-    # long softboxes lying along the sword (their long side along X)
-    strip(scene, "Top", (0.0, -0.25, 1.4), (0.0, 0.0, 0.0), 110, (1.0, 0.97, 0.92), 2.6, 0.5)
-    strip(scene, "RimHigh", (0.0, 1.3, 0.75), (0.0, 0.0, 0.0), 220, (0.75, 0.9, 1.0), 2.6, 0.25)
-    strip(scene, "RimLow", (0.0, 1.2, -0.65), (0.0, 0.0, 0.0), 140, (0.85, 0.75, 1.0), 2.6, 0.25)
-    strip(scene, "Fill", (0.0, -2.2, -0.6), (0.0, 0.0, 0.0), 60, (0.7, 0.85, 1.0), 2.6, 0.8)
+    # long softboxes lying along the sword (their long side along X), as long as the sword
+    k = length / 1.745
+    w = 1.5 * length
+    strip(scene, "Top", (0.0, -0.25, 1.4), (0.0, 0.0, 0.0), 110 * k, (1.0, 0.97, 0.92), w, 0.5)
+    strip(scene, "RimHigh", (0.0, 1.3, 0.75), (0.0, 0.0, 0.0), 220 * k, (0.75, 0.9, 1.0), w, 0.25)
+    strip(scene, "RimLow", (0.0, 1.2, -0.65), (0.0, 0.0, 0.0), 140 * k, (0.85, 0.75, 1.0), w, 0.25)
+    strip(scene, "Fill", (0.0, -2.2, -0.6), (0.0, 0.0, 0.0), 60 * k, (0.7, 0.85, 1.0), w, 0.8)
     spot = bpy.data.lights.new("HiltSpot", "SPOT")    # warm accent on the gold hilt
     spot.energy = 45
     spot.color = (1.0, 0.8, 0.55)
@@ -110,11 +115,11 @@ def setup_world_and_camera(samples, shot):
     spot.spot_blend = 0.6
     spot.shadow_soft_size = 0.15
     so = bpy.data.objects.new("HiltSpot", spot)
-    so.location = (-0.9, -1.4, 0.9)
-    so.rotation_euler = (Vector((HILT_X + 0.3, 0, 0)) - so.location).to_track_quat("-Z", "Y").to_euler()
+    so.location = (-length / 2 - 0.03, -1.4, 0.9)
+    so.rotation_euler = (Vector((-length / 2 + 0.3, 0, 0)) - so.location).to_track_quat("-Z", "Y").to_euler()
     scene.collection.objects.link(so)
 
-    cam_loc, target, lens, (rx, ry) = SHOTS[shot]
+    cam_loc, target, lens, (rx, ry) = shots(length)[shot]
     cam_data = bpy.data.cameras.new("Cam")
     cam_data.lens = lens
     cam = bpy.data.objects.new("Camera", cam_data)
@@ -137,6 +142,7 @@ def setup_world_and_camera(samples, shot):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
     out, samples, shot, res, blend_out = None, 128, "full", 100, None
+    length = inspect.signature(gem_rapier.build).parameters["length"].default
     for i, a in enumerate(argv):
         if a == "--render":
             out = argv[i + 1]
@@ -148,10 +154,12 @@ def main():
             res = int(argv[i + 1])
         elif a == "--save":
             blend_out = argv[i + 1]
+        elif a == "--length":
+            length = float(argv[i + 1])
 
     reset()
-    build_sword()
-    setup_world_and_camera(samples, shot)
+    build_sword(length)
+    setup_world_and_camera(samples, shot, length)
     bpy.context.scene.render.resolution_percentage = res
     if blend_out:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(blend_out))

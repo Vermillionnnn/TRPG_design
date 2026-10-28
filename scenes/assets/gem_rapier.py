@@ -260,10 +260,10 @@ def faceted(name, profile, top, material, segs=8):
 
 def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036, blade=(0.95, 0.97, 1.0),
           sparkle=((0.2, 0.45, 1.0), (0.3, 0.9, 1.0), (1.0, 0.35, 0.7), (1.0, 0.55, 0.15),
-                   (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=260, hilt="gold", light=True, rng=None):
+                   (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=None, hilt="gold", light=True, rng=None):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
     blade: glass tint (r, g, b) or a material. sparkle: colours of the glowing specks inside
-    the crystal; sparks_count: how many. hilt: material, palette key or (r, g, b). rng: random source."""
+    the crystal; sparks_count: how many (default about 230 per metre of blade). hilt: material, palette key or (r, g, b). rng: random source."""
     rng = rng or random.Random(5)
     hilt = as_material(hilt, name + "Hilt", 0.3)
     glass = blade if isinstance(blade, bpy.types.Material) else glass_mat(name + "Glass", blade)
@@ -276,11 +276,11 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036,
     hw = width / 2
     parts = []
 
-    # blade: almost full width all the way, narrowing only a little, then a short triangular point
+    # blade: narrowing steadily by about a third along its length, then a short triangular point
     ln = length - base
     point = width * 1.6
-    blade_sec = [(base - 0.01, hw, hw * 0.38), (base + ln * 0.5, hw * 0.93, hw * 0.36),
-                 (length - point, hw * 0.85, hw * 0.33)]
+    blade_sec = [(base - 0.01, hw, hw * 0.38), (base + ln * 0.5, hw * 0.82, hw * 0.34),
+                 (length - point, hw * 0.65, hw * 0.3)]
     parts.append(prism(name + "Blade", blade_sec, glass, tip=length))
     # crystal base: a vase flaring to sharp shoulders, a waist, then a lozenge running into the blade
     base_sec = [(g + dz * c, hw * w, hw * t) for dz, w, t in [
@@ -289,8 +289,9 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036,
     parts.append(prism(name + "CrystalBase", base_sec, glass, tip=base + 0.01 * c))
     # coloured sparks scattered through both crystals, a little denser in the base
     glints = Batch()
-    sparks(glints, blade_sec, length, specks, sparks_count, 0.0018, rng)
-    sparks(glints, base_sec, base + 0.01 * c, specks, sparks_count // 6, 0.0018, rng)
+    count = sparks_count or round(230 * ln)
+    sparks(glints, blade_sec, length, specks, count, 0.0018, rng)
+    sparks(glints, base_sec, base + 0.01 * c, specks, 43, 0.0018, rng)
     parts += glints.build(name + "Sparks", smooth=True)
     # the thin ring the crystal stands in
     parts.append(turned(name + "Ring", [(0, -3), (14.5 * c / 1.2, -3), (14.5 * c / 1.2, 1), (0, 1)], guard, hilt, segs=32))
