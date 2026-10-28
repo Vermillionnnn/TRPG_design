@@ -3,7 +3,7 @@ after the designer's reference art: the blade rises from a faceted vase-and-loze
 crystal set in a thin gold ring on a heavy guard shaped like two stacked frustums (a
 narrow flat top widening down to a sharp round rim, then
 narrowing again into a ringed neck); the knuckle bow is a flat band carrying the
-guard's top face out and down, ending in a curl; the grip is gently spindle-shaped, fullest near its top; the pommel is
+guard's top face out and down, looping once before it joins the pommel; the grip is gently spindle-shaped, fullest near its top; the pommel is
 a faceted gold arrowhead.
 
     r = gem_rapier.build("Rapier", loc=(0, 0, 1.25))
@@ -175,15 +175,17 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.25, width=0.03, b
                            major_segments=32, minor_segments=6))
 
     # knuckle bow: a flat band growing out of the guard's front; its upper edge carries on the
-    # slope of the guard's upper frustum and bends smoothly down past the grip, narrowing steadily
-    # and winding into a curl above the pommel
+    # slope of the guard's upper frustum and bends smoothly down past the grip, narrowing steadily,
+    # turns one small loop and runs into the pommel cuff
     parts.append(band(name + "Bow", [
         (0.038, guard - 0.0095), (0.055, guard - 0.0158), (0.075, guard - 0.026), (0.092, guard - 0.041),
         (0.104, guard - 0.065), (0.11, 0.285), (0.106, 0.235), (0.092, 0.19),
-        (0.07, 0.158), (0.05, 0.14), (0.038, 0.128), (0.036, 0.115), (0.043, 0.107), (0.052, 0.111),
-        (0.054, 0.12), (0.048, 0.125), (0.044, 0.12)],
-        lambda u: 0.0034 + 0.0085 * max(0.0, 1 - u / 0.28) ** 1.6 + 0.0016 * (1 - u),
-        lambda u: 0.0055 + 0.016 * max(0.0, 1 - u / 0.14) ** 2 - 0.0026 * u, hilt))
+        (0.072, 0.158), (0.06, 0.142)] + [
+        (0.068 + 0.0105 * math.cos(a), 0.127 + 0.0105 * math.sin(a))      # the loop, turning clockwise
+        for a in (math.radians(d) for d in (150, 105, 60, 15, -30, -75, -120, -165, -205))] + [
+        (0.05, 0.114), (0.034, 0.101), (0.022, pom + 0.006), (0.012, pom + 0.001)],
+        lambda u: 0.0036 + 0.0085 * max(0.0, 1 - u / 0.28) ** 1.6 + 0.0014 * (1 - u) + 0.002 * max(0.0, u - 0.94) / 0.06,
+        lambda u: 0.0055 + 0.016 * max(0.0, 1 - u / 0.14) ** 2 - 0.0026 * u + 0.002 * max(0.0, u - 0.94) / 0.06, hilt))
 
     # grip: a long gold rod, gently spindle-shaped, fullest a little below the neck and
     # tapering slowly down to the pommel
