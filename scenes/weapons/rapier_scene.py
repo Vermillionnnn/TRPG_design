@@ -3,7 +3,8 @@ knuckle bow hanging below, floating in front of a dark wine-red backdrop.
 
 Run with:  python3 scenes/weapons/rapier_scene.py [--render out.png] [--samples N]
            [--shot full|hilt|pommel] [--length metres] [--res percent] [--save out.blend]
-           [--anim frames_dir]   (24 frames, one turn about the blade's axis, for 8 fps)
+           [--anim frames_dir [--frames N]]   (one turn about the blade's axis in N frames,
+                                               default 96, to play at 8 fps)
 Requires the `bpy` module (pip install bpy) or run inside Blender:
     blender -b -P scenes/weapons/rapier_scene.py -- --render out.png
 
@@ -42,13 +43,13 @@ def shots(length):
     }
 
 
-SPIN_FRAMES = 24                   # the spin: one full turn in 24 held poses ...
-SPIN_FPS = 8                       # ... shown at 8 fps, 3 s, like stop motion
+SPIN_FRAMES = 96                   # the spin: one full turn in 96 held poses ...
+SPIN_FPS = 8                       # ... shown at 8 fps (12 s a turn), like stop motion
 
 
-def build_sword(length, spin=False):
-    """The sword hangs from an empty at the origin; with spin, the empty turns about the
-    blade's own axis (+X), 360 / SPIN_FRAMES degrees a frame, back to the start on the loop."""
+def build_sword(length, spin=0):
+    """The sword hangs from an empty at the origin; with spin = N frames, the empty turns about
+    the blade's own axis (+X), 360 / N degrees a frame, back to the start on the loop."""
     pivot = bpy.data.objects.new("Spin", None)
     bpy.context.collection.objects.link(pivot)
     r = gem_rapier.build("Rapier", loc=(-length / 2, 0, 0), length=length, light=False)
@@ -56,10 +57,10 @@ def build_sword(length, spin=False):
     r.parent = pivot
     if spin:
         scene = bpy.context.scene
-        scene.frame_start, scene.frame_end = 1, SPIN_FRAMES
+        scene.frame_start, scene.frame_end = 1, spin
         scene.render.fps = SPIN_FPS
-        for f in range(SPIN_FRAMES):
-            pivot.rotation_euler = (2 * math.pi * f / SPIN_FRAMES, 0, 0)
+        for f in range(spin):
+            pivot.rotation_euler = (2 * math.pi * f / spin, 0, 0)
             pivot.keyframe_insert("rotation_euler", frame=f + 1)
 
 
@@ -191,7 +192,7 @@ def setup_world_and_camera(samples, shot, length):
 
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else sys.argv[1:]
-    out, samples, shot, res, blend_out, anim = None, 128, "full", 100, None, None
+    out, samples, shot, res, blend_out, anim, frames = None, 128, "full", 100, None, None, SPIN_FRAMES
     length = inspect.signature(gem_rapier.build).parameters["length"].default
     for i, a in enumerate(argv):
         if a == "--render":
@@ -208,9 +209,11 @@ def main():
             length = float(argv[i + 1])
         elif a == "--anim":
             anim = argv[i + 1]
+        elif a == "--frames":
+            frames = int(argv[i + 1])
 
     reset()
-    build_sword(length, spin=anim is not None)
+    build_sword(length, spin=frames if anim else 0)
     setup_world_and_camera(samples, shot, length)
     bpy.context.scene.render.resolution_percentage = res
     if blend_out:

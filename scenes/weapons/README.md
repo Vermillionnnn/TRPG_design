@@ -48,7 +48,7 @@ scenes/blender.sh scenes/weapons/rapier_scene.py --render out/rapier.png --shot 
 
 - `--shot full|hilt|pommel`：整把剑（2400×1000，`--res 150` 出 3600×1500）/ 剑柄特写（2400×1500）/ 剑首（1200×1000）
 - `--length 米`：剑的全长（默认用素材的默认值），镜头和灯光会跟着长度调整，用来比较不同剑身长度
-- `--anim 帧目录`：渲染旋转动画帧：剑绕自己的长轴（水平的剑身中线）转一圈，24 个定格姿势，每帧转 15°，按 8 fps 播放正好 3 秒，首尾相接循环。灯光和镜头不动。合成 GIF：
+- `--anim 帧目录 [--frames N]`：渲染旋转动画帧：剑绕自己的长轴（水平的剑身中线）转一圈，分成 N 个定格姿势（默认 96，每帧转 3.75°），按 8 fps 播放，默认一圈 12 秒，首尾相接循环。灯光和镜头不动。合成 GIF：
 
   ```bash
   scenes/blender.sh scenes/weapons/rapier_scene.py --anim out/rapier_spin --shot full --res 50 --samples 64
