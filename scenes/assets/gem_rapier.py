@@ -68,7 +68,7 @@ def prism(name, sections, material, tip=None, bottom=None):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def sparks(sections, tip, count, rng, inner=(0.4, 0.35)):
+def sparks(sections, tip, count, rng, inner=(0.4, 0.25)):
     """Positions of `count` sparks inside a prism given as for prism(), masked to an inner
     elliptical core (`inner` = fractions of the half width / half thickness) so that none
     sits against the glass."""
@@ -107,8 +107,11 @@ def icosphere(subdiv=2):
     return verts, faces
 
 
-def halo_mat(name, color, strength):
-    """Soft glow: emissive where the surface faces the viewer, fading to clear at its silhouette."""
+def halo_mat(name, color, strength, spread=4.5):
+    """Soft additive glow on a ball-normal shell. Brightness falls off like a Gaussian from the
+    centre, exp(-spread * rho^2), shifted so it reaches exactly nothing at the rim; with spread
+    4.5 it is a third of the peak halfway out. It only adds light, so the shell never hides
+    what is behind it."""
     m = bpy.data.materials.get(name)
     if m:
         return m
@@ -116,42 +119,57 @@ def halo_mat(name, color, strength):
     m.use_nodes = True
     nt = m.node_tree
     nt.nodes.remove(nt.nodes["Principled BSDF"])
-    lw = nt.nodes.new("ShaderNodeLayerWeight")
-    lw.inputs["Blend"].default_value = 0.5
-    inv = nt.nodes.new("ShaderNodeMath")
-    inv.operation = "SUBTRACT"
-    inv.inputs[0].default_value = 1.0
-    falloff = nt.nodes.new("ShaderNodeMath")
-    falloff.operation = "POWER"
-    falloff.inputs[1].default_value = 8.0            # steep, so the glow fades out like a blur
+    L = nt.links.new
+
+    def op(kind, a, b=None):
+        n = nt.nodes.new("ShaderNodeMath")
+        n.operation = kind
+        for i, v in enumerate((a, b)):
+            if isinstance(v, (int, float)):
+                n.inputs[i].default_value = v
+            elif v is not None:
+                L(v, n.inputs[i])
+        return n.outputs["Value"]
+
+    geo = nt.nodes.new("ShaderNodeNewGeometry")
+    dot = nt.nodes.new("ShaderNodeVectorMath")      # cos of the angle to the view = sqrt(1 - rho^2)
+    dot.operation = "DOT_PRODUCT"
+    L(geo.outputs["Normal"], dot.inputs[0])
+    L(geo.outputs["Incoming"], dot.inputs[1])
+    cos = op("ABSOLUTE", dot.outputs["Value"])
+    rho2 = op("SUBTRACT", 1.0, op("MULTIPLY", cos, cos))   # squared distance from the centre, as seen
+    floor = math.exp(-spread)
+    glow = op("EXPONENT", op("MULTIPLY", rho2, -spread))
+    amount = op("MULTIPLY", op("MAXIMUM", op("SUBTRACT", glow, floor), 0.0), strength / (1 - floor))
     em = nt.nodes.new("ShaderNodeEmission")
     em.inputs["Color"].default_value = (*color, 1)
-    em.inputs["Strength"].default_value = strength
+    L(amount, em.inputs["Strength"])
     clear = nt.nodes.new("ShaderNodeBsdfTransparent")
-    mix = nt.nodes.new("ShaderNodeMixShader")
-    nt.links.new(lw.outputs["Facing"], inv.inputs[1])
-    nt.links.new(inv.outputs["Value"], falloff.inputs[0])
-    nt.links.new(falloff.outputs["Value"], mix.inputs["Fac"])
-    nt.links.new(clear.outputs["BSDF"], mix.inputs[1])
-    nt.links.new(em.outputs["Emission"], mix.inputs[2])
-    nt.links.new(mix.outputs["Shader"], nt.nodes["Material Output"].inputs["Surface"])
+    add = nt.nodes.new("ShaderNodeAddShader")
+    L(clear.outputs["BSDF"], add.inputs[0])
+    L(em.outputs["Emission"], add.inputs[1])
+    L(add.outputs["Shader"], nt.nodes["Material Output"].inputs["Surface"])
     return m
 
 
-def glow_points(name, points, colors, size, rng):
-    """A small saturated core plus a wide, flattened soft halo at each point; merged into one
-    mesh per colour for the cores and one per colour for the halos."""
+def glow_points(name, points, colors, size, rng, halo_share=0.35):
+    """A small saturated core at each point, and around about `halo_share` of them a wide,
+    flattened soft halo (all of them would melt into one haze); merged into one mesh per colour
+    for the cores and one per colour for the halos. The halos are see-through shells, so a
+    scene showing them needs plenty of transparent bounces (rapier_scene.py uses 64)."""
     cores = [mat(f"Spark{k}", c, 0.5, emit=c, emit_strength=2.5) for k, c in enumerate(colors)]
-    halos = [halo_mat(f"SparkHalo{k}", c, 1.2) for k, c in enumerate(colors)]
+    halos = [halo_mat(f"SparkHalo{k}", c, 0.45) for k, c in enumerate(colors)]
     hv, hf = icosphere(2)
     batch, shells = Batch(), {}
     for x, y, z in points:
         k = rng.randrange(len(colors))
         s = size * rng.uniform(0.6, 1.2)
         batch.ball(cores[k], s * 0.4, (x, y, z))
+        if rng.random() > halo_share:
+            continue
         verts, faces = shells.setdefault(k, ([], []))
         o = len(verts)
-        verts += [(x + v.x * s * 2.4, y + v.y * s * 0.8, z + v.z * s * 2.4) for v in hv]
+        verts += [(x + v.x * s * 7.2, y + v.y * s * 1.2, z + v.z * s * 7.2) for v in hv]
         faces += [tuple(o + i for i in f) for f in hf]
     objs = batch.build(name + "Core", smooth=True)
     for k, (verts, faces) in shells.items():

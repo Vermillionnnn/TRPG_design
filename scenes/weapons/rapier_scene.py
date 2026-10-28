@@ -134,6 +134,7 @@ def setup_world_and_camera(samples, shot, length):
     scene.cycles.use_denoising = True
     scene.cycles.transmission_bounces = 16
     scene.cycles.max_bounces = 16
+    scene.cycles.transparent_max_bounces = 64      # the sparks' glow shells overlap
     scene.render.resolution_x, scene.render.resolution_y = rx, ry
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Medium High Contrast"
