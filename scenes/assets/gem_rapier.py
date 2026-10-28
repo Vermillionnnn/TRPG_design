@@ -8,7 +8,7 @@ to the pommel: a fluted gold knob belted with sapphires above a gold cage round 
 curve; it swings far out, slants back in, thinning, then widens again to meet the grip's
 lower part and winds into a tightening spiral.
 
-    r = gem_rapier.build("Rapier", loc=(0, 0, 1.75))
+    r = gem_rapier.build("Rapier", loc=(0, 0, 2.31))
     r.rotation_euler = (math.radians(180), 0, 0)   # point down, e.g. hung on a wall
 
 Origin is at the pommel tip; the blade points up along local +z, flat side facing -y.
@@ -18,7 +18,10 @@ import random
 
 import bpy
 
-from assets.lib import Batch, as_material, curve, group, lathe, mat, mesh_obj, point_light, sphere, torus
+from mathutils import Vector
+
+from assets.lib import ICO_F, ICO_V, Batch, as_material, curve, group, lathe, mat, mesh_obj, point_light, \
+    sphere, torus
 
 
 def glass_mat(name, tint):
@@ -65,10 +68,13 @@ def prism(name, sections, material, tip=None, bottom=None):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def sparks(batch, sections, tip, materials, count, size, rng):
-    """Scatter `count` tiny glowing balls inside a prism given as for prism()."""
+def sparks(sections, tip, count, rng, inner=(0.4, 0.35)):
+    """Positions of `count` sparks inside a prism given as for prism(), masked to an inner
+    elliptical core (`inner` = fractions of the half width / half thickness) so that none
+    sits against the glass."""
     pts = sections + [(tip, 0.0, 0.0)]
     z0, z1 = pts[0][0], tip
+    out = []
     for _ in range(count):
         z = rng.uniform(z0, z1 - (z1 - z0) * 0.04)
         for (za, wa, ta), (zb, wb, tb) in zip(pts, pts[1:]):
@@ -76,8 +82,90 @@ def sparks(batch, sections, tip, materials, count, size, rng):
                 f = (z - za) / (zb - za)
                 w, t = wa + (wb - wa) * f, ta + (tb - ta) * f
                 break
-        x, y = rng.uniform(-0.7, 0.7) * w, rng.uniform(-0.55, 0.55) * t
-        batch.ball(rng.choice(materials), size * rng.uniform(0.5, 1.2), (x, y, z))
+        a, r = rng.uniform(0, 2 * math.pi), rng.random() ** 0.5
+        out.append((r * math.cos(a) * inner[0] * w, r * math.sin(a) * inner[1] * t, z))
+    return out
+
+
+def icosphere(subdiv=2):
+    """Unit icosphere: (verts as Vectors, triangle faces)."""
+    verts = [Vector(v).normalized() for v in ICO_V]
+    faces = list(ICO_F)
+    for _ in range(subdiv):
+        cache, split = {}, []
+
+        def mid(a, b):
+            key = (min(a, b), max(a, b))
+            if key not in cache:
+                cache[key] = len(verts)
+                verts.append(((verts[a] + verts[b]) / 2).normalized())
+            return cache[key]
+        for a, b, c in faces:
+            ab, bc, ca = mid(a, b), mid(b, c), mid(c, a)
+            split += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
+        faces = split
+    return verts, faces
+
+
+def halo_mat(name, color, strength):
+    """Soft glow: emissive where the surface faces the viewer, fading to clear at its silhouette."""
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    nt.nodes.remove(nt.nodes["Principled BSDF"])
+    lw = nt.nodes.new("ShaderNodeLayerWeight")
+    lw.inputs["Blend"].default_value = 0.5
+    inv = nt.nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    falloff = nt.nodes.new("ShaderNodeMath")
+    falloff.operation = "POWER"
+    falloff.inputs[1].default_value = 8.0            # steep, so the glow fades out like a blur
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Color"].default_value = (*color, 1)
+    em.inputs["Strength"].default_value = strength
+    clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    nt.links.new(lw.outputs["Facing"], inv.inputs[1])
+    nt.links.new(inv.outputs["Value"], falloff.inputs[0])
+    nt.links.new(falloff.outputs["Value"], mix.inputs["Fac"])
+    nt.links.new(clear.outputs["BSDF"], mix.inputs[1])
+    nt.links.new(em.outputs["Emission"], mix.inputs[2])
+    nt.links.new(mix.outputs["Shader"], nt.nodes["Material Output"].inputs["Surface"])
+    return m
+
+
+def glow_points(name, points, colors, size, rng):
+    """A small saturated core plus a wide, flattened soft halo at each point; merged into one
+    mesh per colour for the cores and one per colour for the halos."""
+    cores = [mat(f"Spark{k}", c, 0.5, emit=c, emit_strength=2.5) for k, c in enumerate(colors)]
+    halos = [halo_mat(f"SparkHalo{k}", c, 1.2) for k, c in enumerate(colors)]
+    hv, hf = icosphere(2)
+    batch, shells = Batch(), {}
+    for x, y, z in points:
+        k = rng.randrange(len(colors))
+        s = size * rng.uniform(0.6, 1.2)
+        batch.ball(cores[k], s * 0.4, (x, y, z))
+        verts, faces = shells.setdefault(k, ([], []))
+        o = len(verts)
+        verts += [(x + v.x * s * 2.4, y + v.y * s * 0.8, z + v.z * s * 2.4) for v in hv]
+        faces += [tuple(o + i for i in f) for f in hf]
+    objs = batch.build(name + "Core", smooth=True)
+    for k, (verts, faces) in shells.items():
+        # flattened shells, but with the normals of a round ball, so the glow fades evenly
+        # from the centre to the rim instead of staying flat across a squashed face
+        me = bpy.data.meshes.new(f"{name}Halo{k}")
+        me.from_pydata(verts, [], faces)
+        me.shade_smooth()
+        me.normals_split_custom_set_from_vertices([tuple(v) for _ in range(len(verts) // len(hv)) for v in hv])
+        o = bpy.data.objects.new(me.name, me)
+        bpy.context.collection.objects.link(o)
+        me.materials.append(halos[k])
+        objs.append(o)
+    return objs
 
 
 # ---------------------------------------------------------------- hilt, front view in mm
@@ -258,16 +346,15 @@ def faceted(name, profile, top, material, segs=8):
     return mesh_obj(name, verts, faces, material, smooth_angle=0)
 
 
-def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036, blade=(0.95, 0.97, 1.0),
-          sparkle=((0.2, 0.45, 1.0), (0.3, 0.9, 1.0), (1.0, 0.35, 0.7), (1.0, 0.55, 0.15),
-                   (0.4, 1.0, 0.45), (0.65, 0.35, 1.0)), sparks_count=None, hilt="gold", light=True, rng=None):
+def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=2.31, width=0.036, blade=(0.95, 0.97, 1.0),
+          sparkle=((0.02, 0.12, 1.0), (0.0, 0.75, 1.0), (1.0, 0.04, 0.45), (1.0, 0.3, 0.0),
+                   (0.08, 1.0, 0.12), (0.45, 0.05, 1.0)), sparks_count=None, hilt="gold", light=True, rng=None):
     """length: pommel tip to blade tip. width: blade width just above the crystal base.
     blade: glass tint (r, g, b) or a material. sparkle: colours of the glowing specks inside
     the crystal; sparks_count: how many (default about 230 per metre of blade). hilt: material, palette key or (r, g, b). rng: random source."""
     rng = rng or random.Random(5)
     hilt = as_material(hilt, name + "Hilt", 0.3)
     glass = blade if isinstance(blade, bpy.types.Material) else glass_mat(name + "Glass", blade)
-    specks = [mat(f"Spark{k}", c, 0.5, emit=c, emit_strength=4) for k, c in enumerate(sparkle)]
 
     guard = HILT / 1000                  # top face of the guard
     g = guard + 0.003                    # top of the thin ring the crystal stands in
@@ -287,12 +374,11 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036,
         (0, 0.65, 0.5), (0.014, 0.85, 0.6), (0.026, 1.6, 0.85), (0.031, 1.65, 0.85), (0.04, 0.75, 0.5),
         (0.046, 0.75, 0.5), (0.068, 1.25, 0.65), (0.094, 1.0, 0.42)]]
     parts.append(prism(name + "CrystalBase", base_sec, glass, tip=base + 0.01 * c))
-    # coloured sparks scattered through both crystals, a little denser in the base
-    glints = Batch()
+    # coloured sparks deep inside both crystals, each a small saturated core in a soft halo
+    # (saturated colours at a modest strength, so the tone mapping keeps them coloured, not white)
     count = sparks_count or round(230 * ln)
-    sparks(glints, blade_sec, length, specks, count, 0.0018, rng)
-    sparks(glints, base_sec, base + 0.01 * c, specks, 43, 0.0018, rng)
-    parts += glints.build(name + "Sparks", smooth=True)
+    pts = sparks(blade_sec, length, count, rng) + sparks(base_sec, base + 0.01 * c, 43, rng)
+    parts += glow_points(name + "Sparks", pts, sparkle, 0.0018, rng)
     # the thin ring the crystal stands in
     parts.append(turned(name + "Ring", [(0, -3), (14.5 * c / 1.2, -3), (14.5 * c / 1.2, 1), (0, 1)], guard, hilt, segs=32))
 
@@ -354,14 +440,13 @@ def build(name="Rapier", loc=(0, 0, 0), rot_z=0.0, *, length=1.745, width=0.036,
     parts.append(turned(name + "PommelFinial", [(0, tip - 3), (5, tip - 2), (7, tip + 2), (5.5, tip + 6),
                                                 (2.6, tip + 8.5), (3.8, tip + 10.5), (2.4, tip + 13), (0, HILT)],
                         guard, hilt, segs=32))
-    glints = Batch()                     # a few sparks inside the drop too
-    for _ in range(30):
-        y = rng.uniform(cal + 8, cal + 40)
-        r = 7.5 * (1 - max(0.0, y - cal - 18) / 26) * rng.random() ** 0.5
+    drop_pts = []                        # a few sparks deep inside the drop too
+    for _ in range(24):
+        y = rng.uniform(cal + 10, cal + 34)
+        r = 4.5 * (1 - max(0.0, y - cal - 18) / 24) * rng.random() ** 0.5
         a = rng.uniform(0, 2 * math.pi)
-        glints.ball(rng.choice(specks), 0.0015 * rng.uniform(0.6, 1.1),
-                    (r * math.cos(a) / 1000, r * math.sin(a) / 1000, guard - y / 1000))
-    parts += glints.build(name + "PommelSparks", smooth=True)
+        drop_pts.append((r * math.cos(a) / 1000, r * math.sin(a) / 1000, guard - y / 1000))
+    parts += glow_points(name + "PommelSparks", drop_pts, sparkle, 0.0013, rng)
 
     if light:
         parts.append(point_light(name + "Light", (0, -0.08, base + ln * 0.3), 3, (0.5, 0.6, 1.0), radius=0.1))

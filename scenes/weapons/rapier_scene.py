@@ -7,9 +7,9 @@ Requires the `bpy` module (pip install bpy) or run inside Blender:
     blender -b -P scenes/weapons/rapier_scene.py -- --render out.png
 
 Units are metres. The sword (default length unless --length) lies along +X centred on the origin, flat side to -Y
-(the camera). Lighting is a studio set of long strip softboxes: one overhead to
-run a clean highlight down the gold and the glass, two behind for the blade's edges,
-a low cool fill, and a small warm spot on the hilt.
+(the camera). Lighting is a warm studio set of long strip softboxes: one overhead to
+run a clean highlight down the gold and the glass, amber and rose rims behind for the
+blade's edges, a low fill, and a small amber spot on the hilt.
 """
 import inspect
 import math
@@ -36,7 +36,7 @@ def shots(length):
     d = length * 1.12 * 85 / 36             # frames the whole sword with a little margin
     return {
         "full": ((0.0, -d, d * 0.065), (0.0, 0.0, -0.02), 85, (2400, 1000)),
-        "hilt": ((p + 0.45, -1.05, 0.22), (p + 0.27, 0.0, -0.03), 60, (1600, 1000)),
+        "hilt": ((p + 0.52, -1.15, 0.24), (p + 0.34, 0.0, -0.03), 60, (2400, 1500)),
         "pommel": ((p + 0.15, -0.42, 0.1), (p + 0.04, 0.0, -0.01), 60, (1200, 1000)),
     }
 
@@ -71,7 +71,7 @@ def backdrop(world):
     nt.links.new(dist.outputs["Value"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
     ambient = nt.nodes.new("ShaderNodeBackground")
-    ambient.inputs["Color"].default_value = (0.05, 0.06, 0.07, 1)
+    ambient.inputs["Color"].default_value = (0.07, 0.05, 0.045, 1)
     ambient.inputs["Strength"].default_value = 0.5
     path = nt.nodes.new("ShaderNodeLightPath")
     mix = nt.nodes.new("ShaderNodeMixShader")
@@ -102,15 +102,15 @@ def setup_world_and_camera(samples, shot, length):
     backdrop(world)
 
     # long softboxes lying along the sword (their long side along X), as long as the sword
-    k = length / 1.745
+    k = length / 1.745                # light output grows with the sword
     w = 1.5 * length
-    strip(scene, "Top", (0.0, -0.25, 1.4), (0.0, 0.0, 0.0), 110 * k, (1.0, 0.97, 0.92), w, 0.5)
-    strip(scene, "RimHigh", (0.0, 1.3, 0.75), (0.0, 0.0, 0.0), 220 * k, (0.75, 0.9, 1.0), w, 0.25)
-    strip(scene, "RimLow", (0.0, 1.2, -0.65), (0.0, 0.0, 0.0), 140 * k, (0.85, 0.75, 1.0), w, 0.25)
-    strip(scene, "Fill", (0.0, -2.2, -0.6), (0.0, 0.0, 0.0), 60 * k, (0.7, 0.85, 1.0), w, 0.8)
+    strip(scene, "Top", (0.0, -0.25, 1.4), (0.0, 0.0, 0.0), 110 * k, (1.0, 0.86, 0.68), w, 0.5)
+    strip(scene, "RimHigh", (0.0, 1.3, 0.75), (0.0, 0.0, 0.0), 220 * k, (1.0, 0.72, 0.45), w, 0.25)
+    strip(scene, "RimLow", (0.0, 1.2, -0.65), (0.0, 0.0, 0.0), 140 * k, (1.0, 0.6, 0.55), w, 0.25)
+    strip(scene, "Fill", (0.0, -2.2, -0.6), (0.0, 0.0, 0.0), 60 * k, (1.0, 0.82, 0.7), w, 0.8)
     spot = bpy.data.lights.new("HiltSpot", "SPOT")    # warm accent on the gold hilt
     spot.energy = 45
-    spot.color = (1.0, 0.8, 0.55)
+    spot.color = (1.0, 0.7, 0.4)
     spot.spot_size = math.radians(28)
     spot.spot_blend = 0.6
     spot.shadow_soft_size = 0.15
