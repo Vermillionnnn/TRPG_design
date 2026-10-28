@@ -42,14 +42,18 @@ def shots(length):
 
 
 def build_sword(length):
-    r = gem_rapier.build("Rapier", loc=(-length / 2, 0, 0), length=length)
+    r = gem_rapier.build("Rapier", loc=(-length / 2, 0, 0), length=length, light=False)
     r.rotation_euler = (0, math.radians(90), 0)      # blade to +X, knuckle bow below
 
 
 def backdrop(world):
-    """The camera sees a radial vignette; everything else is lit by a dim neutral world."""
+    """What each kind of ray sees: the camera sees a radial wine-red vignette and light passing
+    through the glass the vignette's middle colour, so the clear blade shows the backdrop; reflections see a warm
+    studio sky with a bright band overhead, for the facets and the gold to catch; diffuse light
+    gets a dim neutral fill."""
     world.use_nodes = True
     nt = world.node_tree
+    L = nt.links.new
     out = nt.nodes["World Output"]
     bg = nt.nodes["Background"]
     tc = nt.nodes.new("ShaderNodeTexCoord")
@@ -65,20 +69,49 @@ def backdrop(world):
     ramp.color_ramp.elements[0].color = (*POOL, 1)
     ramp.color_ramp.elements[1].position = 0.75
     ramp.color_ramp.elements[1].color = (*EDGE, 1)
-    nt.links.new(tc.outputs["Window"], centre.inputs[0])
-    nt.links.new(centre.outputs["Vector"], squash.inputs[0])
-    nt.links.new(squash.outputs["Vector"], dist.inputs[0])
-    nt.links.new(dist.outputs["Value"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
+    L(tc.outputs["Window"], centre.inputs[0])
+    L(centre.outputs["Vector"], squash.inputs[0])
+    L(squash.outputs["Vector"], dist.inputs[0])
+    L(dist.outputs["Value"], ramp.inputs["Fac"])
+    L(ramp.outputs["Color"], bg.inputs["Color"])
+
+    # studio sky for reflections, by height of the ray direction (-1 straight down .. 1 straight up)
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    L(tc.outputs["Generated"], sep.inputs["Vector"])
+    up = nt.nodes.new("ShaderNodeMapRange")
+    up.inputs["From Min"].default_value = -1.0
+    L(sep.outputs["Z"], up.inputs["Value"])
+    sky = nt.nodes.new("ShaderNodeValToRGB")
+    cr = sky.color_ramp
+    cr.elements[0].color = (0.004, 0.001, 0.002, 1)
+    cr.elements[1].color = (1.2, 0.9, 0.66, 1)
+    # bands at the heights the blade's facets reflect: bright overhead for the upper facets,
+    # a dim rose glow low down for the lower ones (glass only reflects about a tenth at this angle)
+    for pos, col in ((0.03, (0.05, 0.012, 0.02)), (0.08, (0.9, 0.35, 0.3)), (0.14, (0.05, 0.012, 0.02)),
+                     (0.45, (0.03, 0.006, 0.01)), (0.6, (0.12, 0.05, 0.04)), (0.78, (1.0, 0.7, 0.5)),
+                     (0.86, (8.0, 6.3, 4.8)), (0.94, (5.0, 3.9, 2.9))):
+        cr.elements.new(pos).color = (*col, 1)
+    L(up.outputs["Result"], sky.inputs["Fac"])
+    studio = nt.nodes.new("ShaderNodeBackground")
+    L(sky.outputs["Color"], studio.inputs["Color"])
     ambient = nt.nodes.new("ShaderNodeBackground")
     ambient.inputs["Color"].default_value = (0.07, 0.05, 0.045, 1)
     ambient.inputs["Strength"].default_value = 0.5
+    behind = nt.nodes.new("ShaderNodeBackground")    # seen through the glass: the vignette's middle
+    behind.inputs["Color"].default_value = (*POOL, 1)
+
     path = nt.nodes.new("ShaderNodeLightPath")
-    mix = nt.nodes.new("ShaderNodeMixShader")
-    nt.links.new(path.outputs["Is Camera Ray"], mix.inputs["Fac"])
-    nt.links.new(ambient.outputs["Background"], mix.inputs[1])
-    nt.links.new(bg.outputs["Background"], mix.inputs[2])
-    nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
+
+    def pick(fac, no, yes):
+        m = nt.nodes.new("ShaderNodeMixShader")
+        L(path.outputs[fac], m.inputs["Fac"])
+        L(no, m.inputs[1])
+        L(yes, m.inputs[2])
+        return m.outputs["Shader"]
+    shader = pick("Is Glossy Ray", ambient.outputs["Background"], studio.outputs["Background"])
+    shader = pick("Is Transmission Ray", shader, behind.outputs["Background"])
+    shader = pick("Is Camera Ray", shader, bg.outputs["Background"])
+    L(shader, out.inputs["Surface"])
 
 
 def strip(scene, name, loc, target, energy, color, size, size_y, camera_visible=False):
@@ -134,7 +167,6 @@ def setup_world_and_camera(samples, shot, length):
     scene.cycles.use_denoising = True
     scene.cycles.transmission_bounces = 16
     scene.cycles.max_bounces = 16
-    scene.cycles.transparent_max_bounces = 64      # the sparks' glow shells overlap
     scene.render.resolution_x, scene.render.resolution_y = rx, ry
     scene.view_settings.view_transform = "AgX"
     scene.view_settings.look = "AgX - Medium High Contrast"
