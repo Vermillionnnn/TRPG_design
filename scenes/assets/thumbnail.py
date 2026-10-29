@@ -23,12 +23,11 @@ from assets.lib import mat, reset  # noqa: E402
 
 ASSETS = os.path.join(SCENES, "assets")
 NOT_ASSETS = {"__init__", "lib", "thumbnail"}
-OWN_THUMBNAIL = {"gem_rapier"}       # thumbnail comes from the asset's showcase scene; "all" skips it
 
 
 def asset_names():
     return sorted(f[:-3] for f in os.listdir(ASSETS)
-                  if f.endswith(".py") and f[:-3] not in NOT_ASSETS | OWN_THUMBNAIL)
+                  if f.endswith(".py") and f[:-3] not in NOT_ASSETS)
 
 
 def bounds(root):
@@ -86,6 +85,8 @@ def render(name, out, samples, size, params):
     reset()
     module = importlib.import_module("assets." + name)
     root = module.build(**params)
+    # a long, thin asset can ask to lie at an angle so it fills more of the square frame
+    root.rotation_euler = getattr(module, "THUMBNAIL_ROT", root.rotation_euler)
     bpy.context.view_layer.update()
     studio(*bounds(root), samples, size)
     bpy.context.scene.render.filepath = os.path.abspath(out)

@@ -20,6 +20,9 @@ import bpy
 from assets.lib import as_material, curve, group, lathe, mat, mesh_obj, point_light, sphere, torus
 
 
+THUMBNAIL_ROT = (0.0, -0.8, 0.25)   # thumbnail.py lays the long sword diagonally across the frame
+
+
 def glass_mat(name, tint):
     """Clear, nearly colourless crystal: full transmission, thin-film iridescence and dispersion."""
     m = bpy.data.materials.get(name)
