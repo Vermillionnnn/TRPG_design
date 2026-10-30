@@ -40,7 +40,7 @@
 
 ## 如何运行
 
-本地配置 Blender 的方法见 [`scenes/ENVIRONMENT_SETUP.md`](../ENVIRONMENT_SETUP.md)；在 VM 的 Mac 上要加行内前缀，见 [`scenes/README.md`](../README.md)。
+在 VM 的 Mac 上要加行内前缀，见 [`scenes/README.md`](../README.md)。
 
 ```bash
 scenes/blender.sh scenes/shadow-base/build_scene.py --render out/wide.png --shot wide

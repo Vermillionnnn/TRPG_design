@@ -15,8 +15,6 @@
 
 ## 如何运行
 
-本地配置 Blender 的方法见 [`scenes/ENVIRONMENT_SETUP.md`](../ENVIRONMENT_SETUP.md)。
-
 ```bash
 # 用 Blender 无界面模式（推荐）
 scenes/blender.sh scenes/homebase/build_scene.py --render out/wide.png --shot wide
