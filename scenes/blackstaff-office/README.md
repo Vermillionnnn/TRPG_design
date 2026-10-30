@@ -28,8 +28,6 @@
 
 ## 如何运行
 
-本地配置 Blender 的方法见 [`scenes/ENVIRONMENT_SETUP.md`](../ENVIRONMENT_SETUP.md)。
-
 ```bash
 scenes/blender.sh scenes/blackstaff-office/build_scene.py --render out/wide.png --shot wide
 ```
