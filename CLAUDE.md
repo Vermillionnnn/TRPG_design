@@ -12,7 +12,7 @@
 
 | 目录 | 内容 |
 | --- | --- |
-| `scenes/` | Blender 场景，`bpy` 脚本生成 |
+| `scenes/` | Blender 场景，`bpy` 脚本生成；本地配置见 [`scenes/ENVIRONMENT_SETUP.md`](scenes/ENVIRONMENT_SETUP.md) |
 | `html/` | 网页作品 |
 | `svg/` | 矢量美术（地图、道具卡、图标） |
 | `plots/` | 立绘与绘制过程、数据可视化 |
@@ -29,7 +29,7 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/wide.png --samples
 ```
 
 - `blender.sh` 负责找到 Blender（`$BLENDER`、`PATH`、`/Applications`），把 Blender 用户目录放到仓库内的 `.blender/`，并以 `-b --factory-startup --disable-autoexec` 运行。
-- 脚本在 Blender 5.2.3 和 5.3.0 Beta 上实际跑过。VM 的 Mac 上 5.2.3 在沙箱里会崩（Metal 上游 bug），沙箱内渲染用 5.3.0 Beta：`BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh ...`。具体版本：5.2.3 LTS（hash e13b728c6880）、5.3.0 Beta（hash 4768a6eac54c）。
+- 脚本在 Blender 5.2.3 和 5.3.0 Beta 上实际跑过。VM 的 Mac 上 5.2.3 在沙箱里会崩（Metal 上游 bug），沙箱内渲染用 5.3.0 Beta：`BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh ...`。版本记录见 `scenes/ENVIRONMENT_SETUP.md` 第 4 步。
 - 云端等没有 Blender 的环境可以 `pip install bpy` 后直接 `python3 scenes/homebase/build_scene.py ...`（`bpy` 只支持特定 Python 版本，5.2 对应 3.13）。
 - `homebase` 的参数：`--shot wide|close|top`、`--samples N`、`--res 百分比`、`--anim 目录 [--step N]`、`--save x.blend`。
 - 调试时用低采样、低分辨率（`--samples 8 --res 25`，约 20 秒）；正式出图用默认值。
@@ -49,10 +49,10 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/wide.png --samples
 
 ## 本地环境（VM 的 Mac）
 
-Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，网络只放行 GitHub，不能跳出沙箱。配置指南和调试记录由设计者私下保存，不在公开仓库里。
+Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，网络只放行 GitHub，不能跳出沙箱。配置方法见 [`scenes/ENVIRONMENT_SETUP.md`](scenes/ENVIRONMENT_SETUP.md)。
 
 - 只通过 `scenes/blender.sh` 调 Blender，渲染输出写到仓库内的 `out/`。不要使用 `--enable-autoexec` 或 `-y`。
-- **本地环境必须**：渲染用 5.3 Beta，命令写成行内前缀 `BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh ...`，不要用 `export BLENDER=...`。原因：5.2.3 在沙箱里会崩（Metal GPU 检测处的 Blender 上游 bug）；`export` 会触发许可询问，行内前缀不会。
+- **本地环境必须**：渲染用 5.3 Beta，命令写成行内前缀 `BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender scenes/blender.sh ...`，不要用 `export BLENDER=...`。原因：5.2.3 在沙箱里会崩（见 `scenes/DEBUG.md` 问题 1）；`export` 会触发许可询问，行内前缀不会。
 - **本地环境必须**：每次 Bash 调用只写一条简单命令，否则会弹窗等 VM 许可：
   - 不要用 `&&`、`;` 串联，不要用子 shell `( )`、后台 `&`、`wait`、管道 `|`、重定向 `>`。要做几件事就分几次调用；要并行就用 Bash 工具的 `run_in_background` 参数。
   - 不要把含 `|`、`<<`、`!`、`;`、`>` 等字符的代码塞进 `python3 -c "..."`：先用 Write 工具写到 `out/xxx.py`（`out/` 已忽略），再运行 `python3 out/xxx.py`。
