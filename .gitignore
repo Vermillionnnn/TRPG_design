@@ -3,5 +3,7 @@
 .blender/
 out/
 .claude/settings.local.json
+.claude/*.backup-*
+.DS_Store
 .venv/
 __pycache__/
