@@ -108,7 +108,7 @@ scenes/blender.sh scenes/assets/thumbnail.py all
 scenes/blender.sh scenes/assets/thumbnail.py chair --set seat_height=0.7 --set spindles=5 --out out/tall.png
 ```
 
-参数：`--out 路径`、`--samples N`（默认 64）、`--size 像素`（默认 384，正方形）、`--set 参数=值`（可重复，值按 Python 字面量解析，如 `--set "cushion=(0.2,0.05,0.35)"`）。默认设置一张约 5 秒，全部约 2 分钟。在 VM 的 Mac 沙箱里照常加 `BLENDER=/Applications/Blender_beta.app/Contents/MacOS/Blender` 前缀。
+参数：`--out 路径`、`--samples N`（默认 64）、`--size 像素`（默认 384，正方形）、`--set 参数=值`（可重复，值按 Python 字面量解析，如 `--set "cushion=(0.2,0.05,0.35)"`）。默认设置一张约 5 秒，全部约 2 分钟。
 
 ## 新增一个素材
 

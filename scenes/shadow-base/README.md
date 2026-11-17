@@ -40,8 +40,6 @@
 
 ## 如何运行
 
-在 VM 的 Mac 上要加行内前缀，见 [`scenes/README.md`](../README.md)。
-
 ```bash
 scenes/blender.sh scenes/shadow-base/build_scene.py --render out/wide.png --shot wide
 ```
@@ -56,7 +54,7 @@ scenes/blender.sh scenes/shadow-base/build_scene.py --render out/wide.png --shot
 - `--res 百分比`：渲染分辨率百分比
 - `--save out.blend`：保存为 `.blend` 文件
 
-`--samples 8 --res 50` 的预览在 VM 的 Mac 上大约 2 分钟。
+`--samples 8 --res 50` 的预览用 CPU 渲染大约 2 分钟。
 
 动画里会动的：篝火和火把的火焰与火光、宴会桌上的漂浮蜡烛、院子上空的漂浮光球、喷泉顶上的法球和铜环、坩埚的金色气泡，以及水晶球和发光水晶的光。生成循环 GIF（16 帧按 8 fps 播放，正好 2 秒，有定格动画的顿挫感）：
 
