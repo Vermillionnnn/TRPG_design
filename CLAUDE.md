@@ -47,7 +47,7 @@ scenes/blender.sh scenes/homebase/build_scene.py --render out/wide.png --samples
 
 成品图加 README，重点写绘制过程（工具、提示词、迭代），故事背景只写一两句。
 
-## 本地环境（VM 的 Mac）
+## 本地环境
 
 Claude Code 在沙箱里运行：只能读 `~/Desktop/test`、只能写仓库，网络只放行 GitHub，不能跳出沙箱。配置指南和调试记录由设计者私下保存，不在公开仓库里。
 
